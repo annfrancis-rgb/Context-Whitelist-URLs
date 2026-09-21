@@ -149,8 +149,7 @@ button,input,textarea{font-family:inherit}
 </style>
 </head>
 <body>
-<div id="app" class="aira"></div>
-<div id="proto"></div>
+<div id="app" class="aira"></div><div id="proto"></div>
 
 <script>
 'use strict';
@@ -746,7 +745,7 @@ function sizeGuttersFor(id, FIXED_COLS, NAME_TARGET) {
 }
 addEventListener('resize', sizeGutters);
 
-const SCOPES = [['all','All contexts'], ['org','Org'], ['user','User']];
+const SCOPES = [['all','All'], ['org','Org'], ['user','User']];
 const STATUSES = [['active','Active'], ['archived','Archived'], ['all','All']];
 const labelOf = (opts, v) => (opts.find(o => o[0] === v) || opts[0])[1];
 
@@ -808,7 +807,7 @@ function emptyState() {
     body  = WHAT_CONTEXT_IS; cta = 'Add context';
   } else {
     title = 'No contexts in this view';
-    body  = 'Nothing matches this filter. Try All contexts.';
+    body  = 'Nothing matches this filter. Try All.';
   }
   return `<div style="${col(8,'flex-grow:1;align-items:center;justify-content:center;'
       + 'padding:64px 24px;text-align:center')}">`
@@ -890,12 +889,12 @@ function listing() {
      upward on the last rows rather than opening into the table's bottom edge. */
   function rowMenu(c, i, total) {
     if (S.menu !== c.id) return '';
-    const items = [['View context', I.eye, 'view']];
+    const items = [['View', I.eye, 'view']];
     if (canEdit(c)) {
-      if (c.archived) items.push(['Restore context', I.archiveRestore, 'restore']);
+      if (c.archived) items.push(['Restore', I.archiveRestore, 'restore']);
       else {
-        items.push(['Edit context', I.squarePen, 'edit']);
-        items.push(['Archive context', I.archive, 'archive']);
+        items.push(['Edit', I.squarePen, 'edit']);
+        items.push(['Archive', I.archive, 'archive']);
       }
     }
     const up = total > 4 && i >= total - 3;
@@ -1096,10 +1095,10 @@ function whitelistListing() {
 
   const wlMenu = (w, i, total) => {
     if (S.menu !== w.id) return '';
-    const items = [['View URL', I.eye, 'view']];
+    const items = [['View', I.eye, 'view']];
     if (wlCanEdit()) {
-      items.push(['Edit URL', I.squarePen, 'edit']);
-      items.push(['Delete URL', I.trash, 'delete']);
+      items.push(['Edit', I.squarePen, 'edit']);
+      items.push(['Delete', I.trash, 'delete']);
     }
     const up = total > 4 && i >= total - 3;
     return `<div class="menu" role="menu" style="${col(0,'position:absolute;right:0;'
