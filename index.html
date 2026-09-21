@@ -1,0 +1,2655 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="aiRA Settings — Context management and Whitelist URLs, an interactive prototype on the aiRA Design System v1.1.">
+<title>aiRA Settings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── aiRA Design System v1.1, foundations.md values. Three stand-ins for tokens
+      the published table does not print: --aira-bg-danger, --aira-bg-scrim and
+      --avatar-grad. ─────────────────────────────────────────────────────────── */
+.aira{
+  --aira-bg-default:#FFFFFF; --aira-bg-subtle:#FBFCFD; --aira-bg-muted:#EEF1F4;
+  --aira-bg-canvas:#F6F8FA; --aira-bg-elevated:#FFFFFF; --aira-bg-surface:#FFFFFF;
+  --aira-bg-sunken:#EEF1F4;
+  --aira-bg-inverse:#111827; --aira-bg-selected:#EEF0FF; --aira-bg-hover:#EEF1F4;
+  --aira-bg-brand:#3438C9; --aira-bg-brand-hover:#252AA0;
+  --aira-text-primary:#111827; --aira-text-secondary:#364152; --aira-text-tertiary:#6B7785;
+  /* Placeholder text has its own token — the same value as disabled, two steps
+     lighter than tertiary, which is what it had been wrongly painted with. */
+  --aira-text-placeholder:#9AA4B2;
+  --aira-text-link:#3438C9; --aira-text-inverse:#FFFFFF; --aira-text-disabled:#9AA4B2;
+  --aira-text-danger:#D92D2D; --aira-text-success:#1F7A42; --aira-text-warning:#B97300;
+  --aira-border-subtle:#EEF1F4; --aira-border-default:#E2E6EB; --aira-border-strong:#C9D0D9;
+  --aira-border-brand:#3438C9; --aira-border-focus:#3438C9;
+  --aira-radius-xs:4px; --aira-radius-sm:6px; --aira-radius-md:8px; --aira-radius-lg:12px;
+  --aira-radius-xl:16px; --aira-radius-2xl:20px; --aira-radius-pill:999px;
+  --aira-radius-circle:50%;
+  --aira-shadow-sm:0 1px 3px rgba(17,24,39,.08);
+  --aira-shadow-md:0 4px 12px rgba(17,24,39,.10);
+  --aira-shadow-lg:0 8px 24px rgba(17,24,39,.16);
+  --aira-motion-fast:120ms; --aira-motion-base:200ms; --aira-motion-slow:320ms;
+  /* White on --aira-bg-danger measures 4.81:1, which clears AA for the
+     destructive modal's primary. Status surfaces are painted on licensed
+     neutrals rather than on invented amber and red tints. */
+  --aira-bg-danger:#D92D2D;
+  /* Status surfaces, verbatim from the published token set. */
+  --aira-status-warning-bg:#FFF6E0; --aira-status-warning-text:#8A5500;
+  --aira-status-danger-bg:#FFECEC;  --aira-status-danger-text:#B11E1E;
+  --aira-bg-scrim:rgba(17,24,39,0.45);
+  --aira-brand-from:#6268FF; --aira-brand-to:#3BA7FF;
+  --aira-avatar-grad:linear-gradient(135deg,var(--aira-brand-from),var(--aira-brand-to));
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+/* Single-theme on purpose: this has to be indistinguishable from the real aiRA
+   product, which renders light. Every colour is painted explicitly so the page
+   holds its own ground whatever theme the viewer is in. */
+body{font:400 14px/20px Roboto,system-ui,sans-serif;background:var(--aira-bg-canvas);
+  color:var(--aira-text-primary);overflow:hidden}
+button,input,textarea{font-family:inherit}
+/* position:relative so the drawer scrim, the modal scrim and the toast all
+   resolve against the app box rather than the viewport — at 200% zoom the
+   viewport is narrower than the app, and a viewport-sized scrim leaves part of
+   the listing bright and undimmed beside an open dialog. */
+#app{width:100%;height:100%;display:flex;min-width:1180px;position:relative}
+/* Below the product's own minimum the window scrolls rather than clipping the
+   screen away. This is a desktop settings surface; it does not reflow to a phone. */
+@media (max-width:1180px){ body{overflow-x:auto} }
+
+/* outline, never a box-shadow ring — a shadow ring merges into a card's own shadow. */
+.aira [data-fk]:focus-visible{outline:2px solid var(--aira-border-focus);outline-offset:2px;
+  border-radius:var(--aira-radius-xs)}
+/* The bordered wrapper IS the field; the input is the text inside it, so the ring
+   goes round the whole control rather than round the caret's box. */
+.aira .qwrap:focus-within{outline:2px solid var(--aira-border-focus);outline-offset:2px}
+.aira .qbox:focus-visible,.aira .tbox:focus-visible{outline:none}
+.qbox::placeholder,.tbox::placeholder{color:var(--aira-text-placeholder);opacity:1}
+.aira .tbox{resize:vertical}
+
+/* Thumb only, no track — the aiRA scrollbar treatment. */
+.scroller::-webkit-scrollbar{width:6px;height:6px}
+.scroller::-webkit-scrollbar-track{background:transparent}
+.scroller::-webkit-scrollbar-thumb{background:var(--aira-border-strong);
+  border-radius:var(--aira-radius-pill)}
+
+.reset{all:unset;box-sizing:border-box;display:block;cursor:pointer}
+.reset[disabled]{cursor:default}
+
+/* In an open menu, hover wins: the selected row drops its fill the moment the
+   pointer is in the list, so only one row is ever grey. The tick keeps saying
+   which one is selected, because colour is never the only signal. */
+.aira .mitem{transition:background var(--aira-motion-fast) ease-out}
+.aira .mitem:hover{background:var(--aira-bg-hover)}
+.aira .mitem.sel{background:var(--aira-bg-hover)}
+.aira .menu:hover .mitem.sel{background:transparent}
+.aira .menu:hover .mitem:hover{background:var(--aira-bg-hover)}
+.aira .mitem[disabled]{color:var(--aira-text-disabled)}
+.aira .mitem[disabled]:hover{background:transparent}
+
+/* Hover lives in CSS: an inline style has no state. Each rule sits after .reset
+   so it outranks the `all:unset` that would otherwise clear the background. */
+.aira .hov{transition:background var(--aira-motion-fast) ease-out}
+.aira .hov:hover{background:var(--aira-bg-hover)}
+.aira .hov[disabled]:hover{background:transparent}
+/* Hover belongs to the row, not to the name — this is the app listing page's
+   behaviour copied exactly: class "hov" on the whole row, cursor:pointer, and
+   a plain name with no colour change and no underline of its own.
+   --aira-text-tertiary measures 4.02:1 on --aira-bg-hover, under the 4.5:1 AA
+   floor, so quiet text steps up to secondary (9.1:1) for as long as the row is
+   hovered. Nothing else in the row is tertiary. */
+.aira .hov:hover .quiet{color:var(--aira-text-secondary)}
+.aira .dplink:hover{text-decoration:underline}
+
+/* AiraTooltip. A `title` attribute fires on hover and never on keyboard focus,
+   which is the one case that matters here: the name is the row's affordance and
+   it is the thing being truncated. */
+.aira [data-tip]::after{content:attr(data-tip);position:absolute;left:0;top:100%;
+  margin-top:4px;z-index:6;white-space:nowrap;pointer-events:none;opacity:0;
+  transition:opacity var(--aira-motion-fast) ease-out;
+  font:400 13px/20px Roboto,system-ui,sans-serif;color:var(--aira-text-inverse);
+  background:var(--aira-bg-inverse);border-radius:var(--aira-radius-sm);
+  padding:4px 8px;box-shadow:var(--aira-shadow-md)}
+.aira [data-tip]:hover::after,.aira [data-tip]:focus-visible::after{opacity:1}
+@media (prefers-reduced-motion:reduce){ .aira [data-tip]::after{transition:none} }
+
+/* Under reduced motion animation halts, it does not accelerate. */
+@media (prefers-reduced-motion:reduce){
+  .aira .hov,.aira .mitem{transition:none}
+  .aira .spin{animation:none}
+}
+.aira .spin{animation:sp 800ms linear infinite;transform-origin:50% 50%}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ── prototype controls ──────────────────────────────────────────────────────
+   Plainly not part of the product: one strip in the shell's own neutral rather
+   than an aiRA token, so nobody can mistake it for a feature. Centred on the top
+   edge, in the empty middle of the org header — the only band of the window that
+   holds nothing at any width, and clear of the drawer's footer buttons. */
+#proto{position:fixed;left:50%;transform:translateX(-50%);top:7px;z-index:40;
+  display:flex;flex-wrap:nowrap;align-items:center;max-width:calc(100vw - 32px);
+  gap:6px;padding:6px 10px;border-radius:999px;background:rgba(17,24,39,.94);
+  box-shadow:0 8px 24px rgba(17,24,39,.24)}
+#proto .plabel{font:600 11px/16px Roboto,system-ui,sans-serif;letter-spacing:.06em;
+  text-transform:uppercase;color:#9AA4B2;padding:0 4px;flex:none}
+#proto .pnote{font:400 12px/16px Roboto,system-ui,sans-serif;color:#8B95A5;
+  padding:0 6px;flex:none;white-space:nowrap}
+#proto button{all:unset;box-sizing:border-box;cursor:pointer;white-space:nowrap;
+  font:400 13px/20px Roboto,system-ui,sans-serif;color:#C8CFDB;
+  padding:5px 10px;border-radius:999px;transition:background 120ms ease-out}
+#proto button:hover{background:rgba(255,255,255,.10);color:#F4F6FA}
+#proto button[aria-pressed="true"]{background:#F4F6FA;color:#111827}
+#proto button:focus-visible{outline:2px solid #8E97FF;outline-offset:2px}
+#proto .psep{width:1px;height:20px;flex:none;background:rgba(255,255,255,.16);margin:0 2px}
+@media (prefers-reduced-motion:reduce){ #proto button{transition:none} }
+</style>
+</head>
+<body>
+<div id="app" class="aira"></div>
+<div id="proto"></div>
+
+<script>
+'use strict';
+/* ═══════════════════════════════════════════════════════════════════════════
+   aiRA Settings → Context management.
+   A working screen, not a slide deck: one state object, one render, and every
+   state reached the way a real user would reach it. aiRA Design System v1.1
+   throughout — every size below is a published row of the type ramp, every
+   colour and space a token.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+  .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+/* ── the type ramp — foundations.md, verbatim. Roboto ships 400/500/600 and
+      nothing else, and every pair below is a published row. Anything not on
+      this list does not get written. ─────────────────────────────────────── */
+const F = {
+  /* Tracking is part of the published token for every row above H3. */
+  displayMd:'font:600 32px/40px Roboto,system-ui,sans-serif;letter-spacing:-0.015em',
+  h1:    'font:600 28px/36px Roboto,system-ui,sans-serif;letter-spacing:-0.01em',
+  h2:    'font:600 22px/30px Roboto,system-ui,sans-serif;letter-spacing:-0.005em',
+  h3:    'font:600 18px/26px Roboto,system-ui,sans-serif',     /* Heading 3  */
+  h4:    'font:600 16px/24px Roboto,system-ui,sans-serif',     /* Heading 4  */
+  bodyLg:'font:400 16px/26px Roboto,system-ui,sans-serif',     /* Body lg    */
+  body:  'font:400 14px/22px Roboto,system-ui,sans-serif',     /* Body md    */
+  bodySm:'font:400 13px/20px Roboto,system-ui,sans-serif',     /* Body sm    */
+  lblLg: 'font:500 15px/22px Roboto,system-ui,sans-serif',     /* Label lg   */
+  lblMd: 'font:500 14px/20px Roboto,system-ui,sans-serif',     /* Label md   */
+  lblSm: 'font:500 12px/16px Roboto,system-ui,sans-serif',     /* Label sm   */
+  over:  'font:500 11px/16px Roboto,system-ui,sans-serif;letter-spacing:0.08em',
+  /* Code takes Body sm's metrics so a JSON block sits on the same baseline grid
+     as the prose around it; only the family changes. */
+  mono:  'font:400 13px/20px Roboto,system-ui,sans-serif;font-variant-numeric:tabular-nums',
+};
+const semi = e => (e && !e.trim().endsWith(';') ? ';' : '');
+const row    = (g, x='') => `display:flex;align-items:center;gap:${g}px;${x}${semi(x)}`;
+const rowTop = (g, x='') => `display:flex;align-items:flex-start;gap:${g}px;${x}${semi(x)}`;
+const col    = (g, x='') => `display:flex;flex-direction:column;gap:${g}px;${x}${semi(x)}`;
+const tab    = 'font-variant-numeric:tabular-nums';
+const ellip  = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+
+/* ── icons — lucide, strokeWidth 1.5, currentColor, sizes 14/16/20 only.
+      Every glyph is aria-hidden: it is either decorative beside text, or inside
+      a button that carries its own accessible name. ──────────────────────── */
+const ic = (d, s=20) =>
+  `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" `
+  + `stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" `
+  + `style="flex:none">${d}</svg>`;
+const I = {
+  /* Real lucide geometry, not approximations. strokeWidth 1.5 and currentColor
+     come from ic(), so every glyph inherits the weight and the text colour of
+     whatever it sits in. */
+  chevronDown:  s => ic('<path d="m6 9 6 6 6-6"/>', s),
+  chevronRight: s => ic('<path d="m9 18 6-6-6-6"/>', s),
+  chevronLeft:  s => ic('<path d="m15 18-6-6 6-6"/>', s),
+  calendar:     s => ic('<path d="M8 2v4"/><path d="M16 2v4"/>'
+                      + '<rect width="18" height="18" x="3" y="4" rx="2"/>'
+                      + '<path d="M3 10h18"/>', s),
+  x:            s => ic('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>', s),
+  ellipsis:     s => ic('<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>'
+                      + '<circle cx="5" cy="12" r="1"/>', s),
+  plus:         s => ic('<path d="M5 12h14"/><path d="M12 5v14"/>', s),
+  search:       s => ic('<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>', s),
+  eye:          s => ic('<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 '
+                      + '1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>'
+                      + '<circle cx="12" cy="12" r="3"/>', s),
+  /* lucide square-pen — the conventional "edit this record" affordance. */
+  squarePen:    s => ic('<path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>'
+                      + '<path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505'
+                      + 'l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/>', s),
+  trash:        s => ic('<path d="M3 6h18"/>'
+                      + '<path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>'
+                      + '<path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>'
+                      + '<line x1="10" x2="10" y1="11" y2="17"/>'
+                      + '<line x1="14" x2="14" y1="11" y2="17"/>', s),
+  download:     s => ic('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>'
+                      + '<polyline points="7 10 12 15 17 10"/>'
+                      + '<line x1="12" x2="12" y1="15" y2="3"/>', s),
+  paperclip:    s => ic('<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57'
+                      + 'A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>', s),
+  archive:      s => ic('<rect width="20" height="5" x="2" y="3" rx="1"/>'
+                      + '<path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/>'
+                      + '<path d="M10 12h4"/>', s),
+  archiveRestore: s => ic('<rect width="20" height="5" x="2" y="3" rx="1"/>'
+                      + '<path d="M4 8v11a2 2 0 0 0 2 2h2"/>'
+                      + '<path d="M20 8v11a2 2 0 0 1-2 2h-2"/>'
+                      + '<path d="m9 15 3-3 3 3"/><path d="M12 12v9"/>', s),
+  check:        s => ic('<path d="M20 6 9 17l-5-5"/>', s),
+  circleCheck:  s => ic('<path d="M21.801 10A10 10 0 1 1 17 3.335"/>'
+                      + '<path d="m9 11 3 3L22 4"/>', s),
+  info:         s => ic('<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/>'
+                      + '<path d="M12 8h.01"/>', s),
+  triangleAlert: s => ic('<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16'
+                      + 'a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>', s),
+  circleAlert:  s => ic('<circle cx="12" cy="12" r="10"/>'
+                      + '<line x1="12" x2="12" y1="8" y2="12"/>'
+                      + '<line x1="12" x2="12.01" y1="16" y2="16"/>', s),
+  keyRound:     s => ic('<path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3'
+                      + 'a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172'
+                      + 'a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/>'
+                      + '<circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/>', s),
+  lock:         s => ic('<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>'
+                      + '<path d="M7 11V7a5 5 0 0 1 10 0v4"/>', s),
+  braces:       s => ic('<path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5'
+                      + 'c0 1.1.9 2 2 2h1"/>'
+                      + '<path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5'
+                      + 'a2 2 0 0 0-2-2h-1"/>', s),
+  /* The sort mark from the app listing page, path for path: an up arrow and a
+     down arrow side by side. Rotating it 180 degrees swaps which side each one
+     is on, so the same glyph reads as flipped rather than replaced. */
+  sortArrows:   s => ic('<path d="M8 4v16M8 4L5 7M8 4l3 3"/>'
+                      + '<path d="M16 20V4M16 20l3-3M16 20l-3-3"/>', s),
+  messageSquare: s => ic('<path d="M22 17a2 2 0 0 1-2 2H6l-4 4V5a2 2 0 0 1 2-2h16'
+                      + 'a2 2 0 0 1 2 2z"/>', s),
+  loader:       s => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none"`
+                      + ` stroke="currentColor" stroke-width="1.5" stroke-linecap="round"`
+                      + ` class="spin" aria-hidden="true" style="flex:none">`
+                      + `<path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`,
+  /* ── rich-text toolbar, all lucide ─────────────────────────────────────── */
+  bold:         s => ic('<path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7'
+                      + 'a4 4 0 0 1 0 8"/>', s),
+  italic:       s => ic('<line x1="19" x2="10" y1="4" y2="4"/>'
+                      + '<line x1="14" x2="5" y1="20" y2="20"/>'
+                      + '<line x1="15" x2="9" y1="4" y2="20"/>', s),
+  underline:    s => ic('<path d="M6 4v6a6 6 0 0 0 12 0V4"/>'
+                      + '<line x1="4" x2="20" y1="20" y2="20"/>', s),
+  strikethrough: s => ic('<path d="M16 4H9a3 3 0 0 0-2.83 4"/>'
+                      + '<path d="M14 12a4 4 0 0 1 0 8H6"/>'
+                      + '<line x1="4" x2="20" y1="12" y2="12"/>', s),
+  heading1:     s => ic('<path d="M4 12h8"/><path d="M4 18V6"/><path d="M12 18V6"/>'
+                      + '<path d="m17 12 3-2v8"/>', s),
+  heading2:     s => ic('<path d="M4 12h8"/><path d="M4 18V6"/><path d="M12 18V6"/>'
+                      + '<path d="M21 18h-4c0-4 4-3 4-6 0-1.5-2-2.5-4-1"/>', s),
+  heading3:     s => ic('<path d="M4 12h8"/><path d="M4 18V6"/><path d="M12 18V6"/>'
+                      + '<path d="M17.5 10.5c1.7-1 3.5 0 3.5 1.5a2 2 0 0 1-2 2"/>'
+                      + '<path d="M17 17.5c2 1.5 4 .3 4-1.5a2 2 0 0 0-2-2"/>', s),
+  list:         s => ic('<path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/>'
+                      + '<path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/>', s),
+  listOrdered:  s => ic('<path d="M10 12h11"/><path d="M10 18h11"/><path d="M10 6h11"/>'
+                      + '<path d="M4 10h2"/><path d="M4 6h1v4"/>'
+                      + '<path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/>', s),
+  quote:        s => ic('<path d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1'
+                      + 'a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5'
+                      + 'a2 2 0 0 0-2-2z"/>'
+                      + '<path d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1'
+                      + 'a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5'
+                      + 'a2 2 0 0 0-2-2z"/>', s),
+  link:         s => ic('<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>'
+                      + '<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>', s),
+  unlink:       s => ic('<path d="m18.84 12.25 1.72-1.71h-.02a5.004 5.004 0 0 0-.12-7.07'
+                      + ' 5.006 5.006 0 0 0-6.95 0l-1.72 1.71"/>'
+                      + '<path d="m5.17 11.75-1.71 1.71a5.004 5.004 0 0 0 .12 7.07'
+                      + ' 5.006 5.006 0 0 0 6.95 0l1.71-1.71"/>'
+                      + '<line x1="8" x2="8" y1="2" y2="5"/><line x1="2" x2="5" y1="8" y2="8"/>'
+                      + '<line x1="16" x2="16" y1="19" y2="22"/>'
+                      + '<line x1="19" x2="22" y1="16" y2="16"/>', s),
+  code:         s => ic('<path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/>', s),
+  table:        s => ic('<path d="M12 3v18"/><rect width="18" height="18" x="3" y="3" rx="2"/>'
+                      + '<path d="M3 9h18"/><path d="M3 15h18"/>', s),
+  alignLeft:    s => ic('<line x1="21" x2="3" y1="6" y2="6"/>'
+                      + '<line x1="15" x2="3" y1="12" y2="12"/>'
+                      + '<line x1="17" x2="3" y1="18" y2="18"/>', s),
+  alignCenter:  s => ic('<line x1="21" x2="3" y1="6" y2="6"/>'
+                      + '<line x1="17" x2="7" y1="12" y2="12"/>'
+                      + '<line x1="19" x2="5" y1="18" y2="18"/>', s),
+  alignRight:   s => ic('<line x1="21" x2="3" y1="6" y2="6"/>'
+                      + '<line x1="21" x2="9" y1="12" y2="12"/>'
+                      + '<line x1="21" x2="7" y1="18" y2="18"/>', s),
+  removeFormatting: s => ic('<path d="M4 7V4h16v3"/><path d="M5 20h6"/><path d="M13 4 8 20"/>'
+                      + '<path d="m15 15 5 5"/><path d="m20 15-5 5"/>', s),
+  undo:         s => ic('<path d="M3 7v6h6"/>'
+                      + '<path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>', s),
+  redo:         s => ic('<path d="M21 7v6h-6"/>'
+                      + '<path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/>', s),
+};
+const sparkle = (s=24) =>
+  `<svg width="${s}" height="${s}" viewBox="0 0 24 24" aria-hidden="true" style="flex:none"><defs>`
+  + `<linearGradient id="g${s}" x1="0" y1="0" x2="1" y2="1">`
+  + `<stop offset="0" stop-color="var(--aira-brand-from)"/>`
+  + `<stop offset="1" stop-color="var(--aira-brand-to)"/></linearGradient></defs>`
+  + `<path d="M12 2.5l1.9 5.3 5.3 1.9-5.3 1.9L12 17l-1.9-5.4L4.8 9.7l5.3-1.9z" fill="url(#g${s})"/>`
+  + `<path d="M19 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z" fill="url(#g${s})"/></svg>`;
+
+const live = (key) => ` data-fk="${esc(key)}"`;
+/* An icon-only control has no text node, so its name has to be written. This is
+   the only way one gets built, which is what keeps every one of them named. */
+const named = (label, key) => ` data-fk="${esc(key)}" aria-label="${esc(label)}"`;
+
+/* ── atoms ───────────────────────────────────────────────────────────────── */
+
+/* A tag's own horizontal padding. COLS.scope.head reads the same constant, so
+   the heading sits over the tag's text by construction rather than by two
+   literals happening to agree. */
+const TAG_PAD = 12;
+
+/* AiraTag — a category, not a state. Scope is a category (like owner or channel),
+   so the disambiguation table sends it here rather than to Chip or Pill. The icon
+   carries the distinction alongside the word, so it survives grayscale. */
+const scopeTag = sc =>
+  `<span style="${F.lblSm};color:var(--aira-text-secondary);`
+  + `background:var(--aira-bg-muted);border-radius:var(--aira-radius-pill);`
+  + `height:20px;padding:0 ${TAG_PAD}px;display:inline-flex;align-items:center">`
+  + (sc === 'org' ? 'Org' : 'User') + `</span>`;
+
+/* AiraChip, default tone. Archived is a quiet, reversible state, not a danger —
+   and it is not one of Pill's six approval states, so it may never be a Pill. It
+   shows only in the All view, where the two kinds of row actually sit together. */
+const archivedChip = () =>
+  `<span style="${row(4,`${F.lblSm};color:var(--aira-text-secondary);`
+    + 'background:var(--aira-bg-default);border:1px solid var(--aira-border-default);'
+    + `border-radius:var(--aira-radius-pill);height:20px;padding:0 ${TAG_PAD}px`)}">`
+  + `<span aria-hidden="true" style="width:4px;height:4px;`
+  + `border-radius:var(--aira-radius-pill);`
+  + `background:var(--aira-text-tertiary);flex:none"></span>Archived</span>`;
+
+const keyTypeTag = t =>
+  `<span style="${F.lblSm};color:var(--aira-text-secondary);background:var(--aira-bg-muted);`
+  + `border-radius:var(--aira-radius-pill);height:20px;padding:0 ${TAG_PAD}px;`
+  + `display:inline-flex;align-items:center">`
+  + `${t === 'oauth' ? 'OAuth' : 'Static'}</span>`;
+
+const avatar = init =>
+  `<span aria-hidden="true" style="width:32px;height:32px;`
+  + `border-radius:var(--aira-radius-circle);background:var(--aira-avatar-grad);`
+  + `color:var(--aira-text-inverse);${F.lblMd};display:inline-flex;`
+  + `align-items:center;justify-content:center;flex:none">${esc(init)}</span>`;
+
+const email = n => n ? n + '@capillarytech.com' : '';
+const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+
+/* A leading icon is sized to the text beside it, not to the control that holds
+   it. The published system pairs a 14px glyph with Label sm on its 28px button
+   and a 14px chevron with Label md on its 36px dropdown trigger — never a 20px
+   glyph in a 36px control, which is what made the plus sit too heavy against
+   "Add context" and threw the button's padding out of balance. 16px is the
+   aiRA size that reads level with 14px Label md. */
+const ICON_WITH_LABEL = 16;
+
+function primaryBtn(label, key, glyph, opts={}) {
+  const off = !!opts.disabled;
+  return `<button class="reset" ${off ? 'disabled aria-disabled="true" ' : ''}`
+    + `style="${row(8,'height:36px;padding:0 16px;width:fit-content;'
+      + 'justify-content:center;'
+      + 'border-radius:var(--aira-radius-md);' + F.lblMd + ';'
+      + (off ? 'background:var(--aira-bg-muted);color:var(--aira-text-disabled)'
+             : 'background:var(--aira-bg-brand);color:var(--aira-text-inverse)'))}"`
+    + (off ? '' : live(key)) + `>`
+    + (opts.spin ? I.loader(ICON_WITH_LABEL)
+                 : (glyph ? glyph(ICON_WITH_LABEL) : '')) + esc(label) + `</button>`;
+}
+/* width:fit-content, so a button dropped into a flex column is sized by its
+   label rather than stretched to the column's width. */
+function ghostBtn(label, key, glyph) {
+  return `<button class="reset hov" style="${row(8,'height:36px;padding:0 16px;'
+    + 'width:fit-content;justify-content:center;'
+    + 'border:1px solid var(--aira-border-default);'
+    + 'border-radius:var(--aira-radius-md);' + F.lblMd
+    + ';color:var(--aira-text-secondary)')}"` + live(key) + `>`
+    + (glyph ? glyph(ICON_WITH_LABEL) : '') + `${esc(label)}</button>`;
+}
+/* 32px square: the desktop icon-button size, which clears the 28px dense-table
+   tier with room for the adjacent-target spacing the standard also asks for. */
+function iconBtn(label, key, glyph, ink) {
+  return `<button class="reset hov" style="${row(0,'justify-content:center')}width:32px;`
+    + `height:32px;flex:none;border-radius:var(--aira-radius-md);`
+    + `color:${ink || 'var(--aira-text-secondary)'}"` + named(label, key) + `>${glyph(20)}</button>`;
+}
+
+/* ═══ data ══════════════════════════════════════════════════════════════════
+   Loyalty / CRM throughout. Names are kept exactly as the live org has them,
+   including the shouty one — user-entered data is never re-cased, and it is the
+   row that has to cope with it rather than the other way round. ──────────── */
+
+const BODY_SAMPLES = {
+  sql: 'Every query against the loyalty warehouse must be scoped to the current org id.\n\n'
+     + 'Never join customer_profile to transaction_line without the brand filter — the table is '
+     + 'shared across brands and an unscoped join returns another client’s members.\n\n'
+     + 'Use tier_snapshot_daily for anything tier-related. tier_current is a live view and will '
+     + 'not reconcile against a report run yesterday.',
+  brand: 'Trendly is a mid-market fashion retailer running a four-tier loyalty programme: '
+       + 'Base, Silver, Gold and Icon.\n\n'
+       + 'Points accrue at 1 point per ₹10 spent, doubled on Gold and above at weekends. '
+       + 'Points expire 18 months after the transaction that earned them.\n\n'
+       + 'The programme runs in India and the UAE. Currency and tax handling differ; always '
+       + 'confirm the region before quoting a redemption value.',
+  region: 'Region and source mapping used when a report is grouped by geography.\n\n'
+        + 'North: Delhi NCR, Punjab, Haryana, Uttar Pradesh\n'
+        + 'West: Maharashtra, Gujarat, Rajasthan, Goa\n'
+        + 'South: Karnataka, Tamil Nadu, Telangana, Kerala\n'
+        + 'East: West Bengal, Odisha, Assam, Bihar\n\n'
+        + 'Source values map as: POS → Store, WEB → Ecommerce, APP → Mobile, '
+        + 'CC → Care.',
+  api: 'Connection details for the loyalty API used when aiRA is asked to look up a member '
+     + 'record or issue points directly.\n\n'
+     + 'Base URL is held in the whitelist. The token endpoint returns a bearer token valid for '
+     + '3600 seconds; aiRA refreshes it rather than caching it across sessions.',
+  leader: 'Leaderboard reporting for the quarterly store challenge.\n\n'
+        + 'Rank stores by net enrolments, not gross — cancellations inside 30 days are '
+        + 'removed from the count.\n\n'
+        + 'Ties break on redemption rate, then on revenue per member. Show the top 10 and the '
+        + 'viewer’s own store even when it falls outside the top 10.',
+  testers: 'Accounts used for testing. Exclude these member ids from every report, every '
+         + 'segment count and every revenue figure.\n\n'
+         + 'They are real rows in the warehouse and they will otherwise show up as genuine '
+         + 'members in a tier movement report.',
+  always: 'Configuration blocks that aiRA loads on every session for this org. Continues from '
+        + 'part 1.\n\n'
+        + 'Default reporting period is the last 30 days unless the question names one.\n'
+        + 'Default currency is the org currency — never ask the user which currency to use.\n'
+        + 'Round member counts to whole numbers and revenue to the nearest rupee.',
+  schema: 'Naming conventions in the analytics schema.\n\n'
+        + 'Fact tables are prefixed f_, dimensions d_, and daily snapshots end _daily.\n'
+        + 'Every fact table carries org_id and brand_id. Anything without both is a legacy '
+        + 'table and should not be queried.',
+  weekly: 'Definitions behind the weekly usage dashboard: an active user is one who sent at '
+        + 'least one message in the period, and a session ends after 30 minutes of inactivity.',
+  visual: 'Trendly’s palette, logo usage and image style, used when aiRA generates '
+        + 'creative for the brand.',
+};
+
+let SEQ = 0;
+const mk = o => Object.assign({
+  id: 'c' + (++SEQ), scope:'org', archived:false, attachments:[], keys:[], body:'',
+}, o);
+
+const SEED = [
+  mk({ name:'ALWAYS_LOAD_CONTEXT_CONFIGURATIONS_CONTEXT_PART_2', scope:'org',
+       by:'prarthana.dwivedi', date:'Sep 13, 2026', time:'11:06 AM IST',
+       body:BODY_SAMPLES.always }),
+  mk({ name:'SQL Guideline - Strictly Enforced', scope:'org',
+       by:'bhaskar.priyadarshi', date:'Sep 4, 2026', time:'4:12 PM IST',
+       body:BODY_SAMPLES.sql,
+       attachments:[{ name:'warehouse_schema_v4.md', size:'18 KB' }] }),
+  mk({ name:'Loyalty API credentials', scope:'org',
+       by:'rahul.kamath', date:'Sep 1, 2026', time:'9:55 AM IST',
+       body:BODY_SAMPLES.api,
+       keys:[{ name:'LOYALTY_API_CLIENT', type:'oauth' },
+             { name:'LOYALTY_API_REGION', type:'static' }] }),
+  mk({ name:'Always Read This Doc Database Schema Reference', scope:'org',
+       by:'bhaskar.priyadarshi', date:'Aug 27, 2026', time:'2:48 PM IST',
+       body:BODY_SAMPLES.schema,
+       attachments:[{ name:'schema_reference.pdf', size:'1.2 MB' },
+                    { name:'table_glossary.csv', size:'44 KB' }] }),
+  mk({ name:'Trendly Brand Context', scope:'org',
+       by:'bhaskar.priyadarshi', date:'Aug 20, 2026', time:'5:20 PM IST',
+       body:BODY_SAMPLES.brand }),
+  mk({ name:'Trendly Visual Identity', scope:'org',
+       by:'bhaskar.priyadarshi', date:'Aug 20, 2026', time:'10:14 AM IST',
+       body:BODY_SAMPLES.visual,
+       attachments:[{ name:'Image_tEMPLATE.png', size:'620 KB' }] }),
+  mk({ name:'Region and Source child mapping for brands', scope:'org',
+       by:'harsh.devda', date:'Aug 17, 2026', time:'11:09 AM IST',
+       body:BODY_SAMPLES.region }),
+  mk({ name:'Default customers for testing', scope:'org',
+       by:'chinmay', date:'Aug 5, 2026', time:'3:51 PM IST',
+       body:BODY_SAMPLES.testers }),
+  mk({ name:'Leaderboard Playbook', scope:'user',
+       by:'ann.francis', date:'Sep 9, 2026', time:'12:41 PM IST',
+       body:BODY_SAMPLES.leader,
+       attachments:[{ name:'Image_tEMPLATE.png', size:'620 KB' },
+                    { name:'aiRA_Leaderboard_Context_Final.md', size:'31 KB' }],
+       keys:[{ name:'LEADERBOARD_SHEET_ID', type:'static' }] }),
+  mk({ name:'Leaderboard Context v2', scope:'user', archived:true,
+       by:'ann.francis', date:'Aug 18, 2026', time:'9:08 AM IST',
+       body:BODY_SAMPLES.leader }),
+  mk({ name:'aiRA Usage -- Weekly Usage Dashboard', scope:'org', archived:true,
+       by:'pavan.j', date:'Jun 29, 2026', time:'4:31 PM IST',
+       body:BODY_SAMPLES.weekly }),
+  mk({ name:'Overview Schema Conventions', scope:'org', archived:true,
+       by:'pavan.j', date:'Jun 29, 2026', time:'1:02 PM IST',
+       body:BODY_SAMPLES.schema }),
+];
+const clone = x => JSON.parse(JSON.stringify(x));
+let CTX = clone(SEED);
+const CX = id => CTX.find(c => c.id === id);
+
+const ME = 'ann.francis';
+const NOW = { date:'Sep 20, 2026', time:'9:24 AM IST' };
+
+/* ═══ state — one object, one render ══════════════════════════════════════ */
+const S = {
+  page:'context',       // 'context' | 'whitelist' — which settings section
+  role:'superadmin',    // 'superadmin' | 'configurer' | 'viewer'
+  wlStatus:'all',       // 'all' | 'active' | 'inactive' | 'expired'
+  wlQuery:'',
+  dpOpen:false,         // is the date picker's popover open
+  dpView:null,          // { y, m } — the month the date picker is showing
+  sort:'desc',          // 'asc' | 'desc' — the order Modified on is read in
+  scope:'all',          // 'all' | 'org' | 'user'
+  status:'active',      // 'active' | 'archived' | 'all'
+  query:'',
+  menu:null,            // context id, or '__scope' / '__status' / '__fscope'
+  drawer:null,          // { mode:'view'|'edit'|'add', id }  — at most one
+  form:null,            // the draft being edited — null unless a drawer is open
+  pristine:null,        // a copy of the draft as opened, so dirty is derived
+  keysOpen:false,
+  keyEdit:null,         // index of the key row being edited inline
+  scanning:false,
+  scanError:null,
+  failNext:false,       // arm one failed scan, consumed once
+  submitted:false,      // has the form been submitted — gates when errors show
+  modal:null,           // { kind, ... } — at most one, and never over another
+  bulk:null,
+  bulkError:null,
+  toast:null,
+  focus:null,           // data-fk of the control focus belongs to after render
+  drawerScroll:0,
+};
+
+/* ── derived — computed, never stored ───────────────────────────────────── */
+const canEditOrg  = () => S.role === 'superadmin';
+/* Whitelist is org-only and its permissions split three ways, which is the one
+   thing that makes this screen different from Context: a configurer may add an
+   entry but may not change or remove one, including their own. */
+const wlCanCreate = () => S.role !== 'viewer';
+const wlCanEdit   = () => S.role === 'superadmin';
+const isMine      = c => c.scope === 'user' && c.by === ME;
+/* An org context is readable by everyone and editable by a super admin. A user
+   context belongs to whoever made it, in either role. */
+const canEdit     = c => c.scope === 'org' ? canEditOrg() : isMine(c);
+const visibleTo   = c => c.scope === 'org' || isMine(c);
+const matchesQ    = c => {
+  const q = S.query.trim().toLowerCase();
+  return !q || c.name.toLowerCase().indexOf(q) >= 0
+            || email(c.by).toLowerCase().indexOf(q) >= 0;
+};
+const inScope = c => S.scope === 'all' ? true
+                   : S.scope === 'org' ? c.scope === 'org' : isMine(c);
+/* The Modified on heading carries aria-sort, so the list has to actually be in
+   that order — a heading that claims an order the rows do not hold is a lie to
+   anyone reading it. */
+const stamp = c => Date.parse(c.date + ' ' + c.time.replace(/ [A-Z]{2,4}$/, ''));
+const visibleRows = () => CTX.filter(c => {
+  if (!visibleTo(c)) return false;
+  if (S.status === 'active'   && c.archived) return false;
+  if (S.status === 'archived' && !c.archived) return false;
+  return inScope(c) && matchesQ(c);
+}).sort((a, b) => S.sort === 'asc' ? stamp(a) - stamp(b) : stamp(b) - stamp(a));
+const dirty = () => !!S.form && !!S.pristine
+  && JSON.stringify(S.form) !== JSON.stringify(S.pristine);
+const nameMissing = () => !!S.form && !S.form.name.trim();
+const canSave = () => {
+  if (!S.form || S.scanning) return false;
+  if (S.drawer.mode === 'add') return true;   // validation speaks on submit
+  return dirty();
+};
+
+/* ═══ product chrome ═════════════════════════════════════════════════════ */
+
+const RAIL_ICONS = [
+  '<path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/>', null,
+  '<path d="M20.6 13.4L13.4 20.6a2 2 0 01-2.8 0l-7.2-7.2a2 2 0 010-2.8l7.2-7.2a2 2 0 012.8 0l7.2 7.2a2 2 0 010 2.8z"/><path d="M8 8h.01"/>',
+  '<path d="M3 11l18-8-8 18-2-8z"/>',
+  '<rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="8" rx="1"/>',
+  '<rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13M7 8V5h10v3"/>',
+  '<path d="M17 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>',
+  '<circle cx="12" cy="12" r="3"/><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/>',
+  '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/>',
+  '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h8M8 16h5"/>',
+];
+function railChrome() {
+  const items = RAIL_ICONS.map((d, i) => {
+    const on = i === 1;
+    return `<div style="${row(0,'justify-content:center')}width:56px;height:44px;`
+      + `border-radius:var(--aira-radius-md);color:var(--aira-text-${on?'primary':'tertiary'});`
+      + `background:${on?'var(--aira-bg-selected)':'transparent'}">`
+      + (on ? sparkle(20) : ic(d, 20)) + `</div>`;
+  }).join('');
+  return `<div style="${col(4,'align-items:center;padding:16px 0;width:88px;'
+    + 'flex:none;background:var(--aira-bg-inverse)')}">`
+    + `<div style="${row(0,'justify-content:center')}width:56px;height:48px;margin-bottom:8px">`
+    + sparkle(24) + `</div>` + items + `</div>`;
+}
+/* The top bar is the org header, so it carries org-scoped controls only. */
+function topBar() {
+  return `<div style="${row(0,'height:56px;flex:none;padding:0 24px;'
+    + 'background:var(--aira-bg-elevated);border-bottom:1px solid var(--aira-border-default)')}">`
+    + `<span style="${F.h4};color:var(--aira-text-primary)">Trendly India</span>`
+    + `<span style="color:var(--aira-text-tertiary);margin-left:8px;display:flex">`
+    + I.chevronDown(16) + `</span><span style="flex-grow:1"></span>`
+    + `<span style="${row(8,'border:1px solid var(--aira-border-default);'
+      + 'border-radius:var(--aira-radius-md);padding:8px 16px;' + F.lblMd
+      + ';color:var(--aira-text-secondary)')}">`
+    + I.messageSquare(ICON_WITH_LABEL) + `Sessions</span>`
+    + `<span style="margin-left:16px">${avatar('AF')}</span></div>`;
+}
+
+const SETTINGS_NAV = [
+  ['Context', 'context'], ['Whitelist URLs', 'whitelist'], ['Playbooks', null],
+  ['Usage', null], ['Billing & credits', null],
+];
+function settingsNav() {
+  return `<nav aria-label="Settings sections" style="${col(4,'width:260px;flex:none;'
+    + 'padding:16px 12px;border-right:1px solid var(--aira-border-default)')}">`
+    + SETTINGS_NAV.map(([label, page]) => {
+        const on = page === S.page;
+        const style = `${row(0,`height:40px;padding:0 12px;`
+          + `border-radius:var(--aira-radius-md);${on ? F.lblMd : F.body};`
+          + `color:var(--aira-text-${on ? 'link' : page ? 'secondary' : 'disabled'});`
+          + (on ? 'background:var(--aira-bg-selected);' : '')
+          + (page && !on ? 'cursor:pointer;' : ''))}`;
+        return page
+          ? `<button class="reset${on ? '' : ' hov'}"${on ? ' aria-current="page"' : ''} `
+            + `style="${style}"` + live('nav:' + page) + `>${esc(label)}</button>`
+          : `<div style="${style}">${esc(label)}</div>`;
+      }).join('')
+    + `</nav>`;
+}
+
+/* ═══ the listing ════════════════════════════════════════════════════════ */
+
+/* The page inset, and the inset inside the table — both taken from the app
+   listing page this screen is meant to sit beside. */
+const INSET = 32;
+const CELL  = 16;
+
+/* One spec per column, used by the heading and by every cell beneath it, so a
+   column can never drift from its heading.
+
+   Columns are sized to what they hold, and the space left over goes into the
+   gutters — every gutter grows by the same amount, so they stay equal to each
+   other at any window width. Proportional columns did the opposite: each one
+   absorbed a different share of the slack relative to its own content, which
+   left gutters of roughly 16 / 79 / 53 / 140px across one row. Equal gutters
+   are what make a table read as a grid. */
+const COLS = {
+  /* Name is the one column that flexes; the rest are the width of what they
+     hold. Actions is 56 rather than the 32 its button needs, because the word
+     Actions is 48 wide and a nowrap heading in a 32px box spills out of the
+     table and into the scrollbar.
+
+     Scope keeps a column of its own. */
+  name:  { cell:'flex:1 1 0;min-width:180px' },
+  scope: { cell:'width:64px;flex:none' },
+  /* Shrinkable, so at the narrow end the two text columns give way together
+     rather than Name collapsing on its own. */
+  by:    { cell:'flex:0 1 288px;min-width:180px' },
+  on:    { cell:'width:140px;flex:none' },
+  act:   { cell:'width:56px;flex:none' },
+};
+const FIXED_COLS = 64 + 288 + 140 + 56;
+/* The gutters are equal to each other AND on the 4px grid, which a flexible
+   spacer cannot be — flex resolves the leftover to whatever it happens to be
+   (41px, last time). So the gutter is computed instead: the largest multiple
+   of 4 that leaves Name at about its natural width, written to --gut once per
+   layout. Name then takes the 0-15px of rounding, so nothing collects at the
+   end of the row. */
+/* NAME_TARGET is set from the distribution of real context names, not from the
+   longest one. Measured at Label md, the twelve seeded names fall at 139, 140,
+   141, 144, 150, 184, 194, 204, 248, 278, 322, 410 — a tight cluster in the
+   140s, a second group around 190-204, then a long tail. Sizing the column to
+   the tail (314px, where it was) fits one more name and costs every other row
+   about 115px of trailing rag. Sizing it just past the second group covers two
+   thirds of names in full, truncates the tail, and cuts the mean rag to roughly
+   40px — about one gutter, which reads as alignment rather than as a hole. */
+const GUTTER_MIN = 24, GUTTER_MAX = 72, NAME_TARGET = 208;
+const gutter = '<span style="width:var(--gut,24px);flex:none"></span>';
+function sizeGutters() {
+  sizeGuttersFor('ctxtable', FIXED_COLS, NAME_TARGET);
+  sizeGuttersFor('wltable', WL_FIXED, WL_TARGET);
+}
+/* The drawer body scrolls, so a popover opening downward from a trigger near the
+   bottom is clipped by the scroller rather than overflowing it. How much room is
+   left is not knowable while the string is being built, so this runs after the
+   render — and after restoreScroll, which would otherwise undo the scroll below. */
+function placeDatePicker() {
+  const pop = document.getElementById('dppop');
+  const box = document.getElementById('dscroll');
+  if (!pop || !box) return;
+  const trig = pop.previousElementSibling;
+  const b = box.getBoundingClientRect(), t = trig.getBoundingClientRect();
+  const h = pop.offsetHeight + 8;
+  if (b.bottom - t.bottom >= h) return;                       // room below: as built
+  if (t.top - b.top >= h) {                                   // room above: flip
+    pop.style.top = 'auto'; pop.style.bottom = 'calc(100% + 4px)'; return;
+  }
+  /* Neither side fits on a short window, so the trigger comes to the top of the
+     drawer and the calendar opens downward into the room that makes. */
+  box.scrollTop += (t.top - b.top) - 8;
+  S.drawerScroll = box.scrollTop;
+}
+function sizeGuttersFor(id, FIXED_COLS, NAME_TARGET) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const avail = el.clientWidth - CELL * 2;
+  /* Clamped at both ends: below 24 the columns run together, and above 48 a
+     wide window turns the gutters into canyons. Past the ceiling the extra
+     goes to Name, which is the primary column and the one that earns it. */
+  const g = Math.min(GUTTER_MAX, Math.max(GUTTER_MIN,
+    Math.floor((avail - FIXED_COLS - NAME_TARGET) / 16) * 4));
+  el.style.setProperty('--gut', g + 'px');
+}
+addEventListener('resize', sizeGutters);
+
+const SCOPES = [['all','All contexts'], ['org','Org'], ['user','User']];
+const STATUSES = [['active','Active'], ['archived','Archived'], ['all','All']];
+const labelOf = (opts, v) => (opts.find(o => o[0] === v) || opts[0])[1];
+
+/* AiraDropdown, single choice. The popover hangs off its own trigger, so neither
+   has to know where on the row it sits or how wide the label happens to be. */
+function dropdown(opts, key, sel) {
+  const open = S.menu === '__' + key;
+  return `<span style="position:relative;display:inline-flex;flex:none">`
+    + `<button class="reset hov" aria-haspopup="listbox" aria-expanded="${open}" `
+    + `style="${row(8,'height:36px;border:1px solid var(--aira-border-default);'
+        + 'border-radius:var(--aira-radius-md);padding:0 12px 0 16px;' + F.body
+        + ';color:var(--aira-text-secondary);white-space:nowrap')}"`
+    + named(labelOf(opts, sel) + ' filter', key) + `>${esc(labelOf(opts, sel))}`
+    + `<span style="color:var(--aira-text-tertiary);display:flex">${I.chevronDown(14)}</span></button>`
+    + (open
+      ? `<div class="menu" role="listbox" style="${col(0,'position:absolute;left:0;'
+          + 'top:calc(100% + 4px);min-width:100%;width:216px;background:var(--aira-bg-elevated);'
+          + 'border:1px solid var(--aira-border-default);border-radius:var(--aira-radius-md);'
+          + 'box-shadow:var(--aira-shadow-lg);padding:8px;z-index:4')}">`
+        + opts.map(([k, t]) => `<button class="reset mitem${k === sel ? ' sel' : ''}" `
+          + `role="option" aria-selected="${k === sel}" style="${row(8,'padding:8px 12px;'
+            + 'border-radius:var(--aira-radius-xs);' + F.body + ';color:var(--aira-text-secondary);'
+            + 'white-space:nowrap')}"`
+          + live(key + ':' + k) + `>`
+          + `<span style="flex:1;min-width:0;text-align:left">${esc(t)}</span>`
+          + (k === sel ? `<span style="flex:none;display:flex;color:var(--aira-text-link)">`
+              + I.check(16) + `</span>` : '') + `</button>`).join('')
+        + `</div>`
+      : '')
+    + `</span>`;
+}
+
+/* Every filter can empty the list, so the list owes the reader a reason and a way
+   out. Four causes, four answers — a single "nothing here" would make a failed
+   search look the same as an empty org. */
+/* One line, and the same line wherever a reader meets an empty list: what a
+   context is, and what having one gets you. */
+const WHAT_CONTEXT_IS =
+  'Tell aiRA what it should know about your business — brand facts, data rules, '
+  + 'naming conventions — and it uses them in every answer.';
+
+function emptyState() {
+  const q = S.query.trim();
+  let title, body, cta = null;
+  if (q) {
+    title = 'No contexts match your search';
+    body  = 'No context name or author email contains “' + q + '”. '
+          + 'Try a shorter word, or clear the search.';
+  } else if (S.status === 'archived') {
+    title = 'No archived contexts';
+    body  = 'Archive a context from its actions menu to keep it out of '
+          + 'aiRA\u2019s reading without losing it.';
+    cta   = null;
+  } else if (S.scope === 'user') {
+    title = 'No contexts of your own';
+    body  = WHAT_CONTEXT_IS; cta = 'Add context';
+  } else if (CTX.filter(visibleTo).length === 0) {
+    title = 'No contexts yet';
+    body  = WHAT_CONTEXT_IS; cta = 'Add context';
+  } else {
+    title = 'No contexts in this view';
+    body  = 'Nothing matches this filter. Try All contexts.';
+  }
+  return `<div style="${col(8,'flex-grow:1;align-items:center;justify-content:center;'
+      + 'padding:64px 24px;text-align:center')}">`
+    + `<span style="color:var(--aira-text-tertiary);display:flex">${I.search(20)}</span>`
+    + `<span style="${F.h4};color:var(--aira-text-primary)">${esc(title)}</span>`
+    + `<span style="${F.bodySm};color:var(--aira-text-secondary);max-width:460px">`
+    + `${esc(body)}</span>`
+    + (cta ? `<span style="margin-top:8px">` + primaryBtn(cta, 'add', I.plus) + `</span>` : '')
+    + `</div>`;
+}
+
+function listing() {
+  const rows = visibleRows();
+
+  /* Weight alone carries the hierarchy across the three data cells: Name and
+     the date are Label md, the author is Body md, all on one ink. Stacking a
+     colour split on top of the weight split would be two mechanisms for one
+     distinction. */
+  const person = e => `<span title="${esc(e)}" style="${F.body};`
+    + `color:var(--aira-text-primary);display:block;${ellip}">${esc(e)}</span>`;
+
+  /* The row is a plain container. The open affordance is a real button on the
+     name, so the row's accessible name is the context name alone and the actions
+     button is its sibling rather than a button inside a button. */
+  const ctxRow = (c, i, total) => {
+    const on = S.drawer && S.drawer.id === c.id;
+    return `<div class="hov"`
+      + live('open:' + c.id)
+      + ` style="${row(0,`padding:12px ${CELL}px;cursor:pointer;`
+        + 'border-bottom:1px solid var(--aira-border-subtle);'
+        + (on ? 'background:var(--aira-bg-selected);' : ''))}">`
+      /* Every cell is a single line except Modified on, and the row centres
+         them against it, so nothing floats above an empty half-cell. */
+      + `<div style="${row(8,COLS.name.cell)}">`
+      /* 36px of target inside a 20px line box: the padding makes the hit area,
+         the matching negative margin keeps the row's rhythm. The full name is
+         exposed on focus as well as hover — a title attribute never reaches a
+         keyboard user, and truncation is exactly what makes it needed. */
+      + `<button class="reset namebtn" data-tip="${esc(c.name)}" style="${F.lblMd};`
+      /* flex:0 1 auto, not flex:1 — the button is the width of its own text and
+         only shrinks when the row runs out of room. Growing it to fill the
+         column pushed the scope pill back out to the column's right edge, which
+         is the stranding this move was meant to end. */
+      + `color:var(--aira-text-primary);${ellip};text-align:left;flex:0 1 auto;`
+      + `min-width:0;padding:8px 0;margin:-8px 0;position:relative"`
+      + live('open:' + c.id) + `>${esc(c.name)}</button>`
+      + (S.status === 'all' && c.archived ? archivedChip() : '') + `</div>`
+      + gutter
+      + `<div style="${COLS.scope.cell}">${scopeTag(c.scope)}</div>`
+      + gutter
+      + `<div style="${COLS.by.cell}">${person(email(c.by))}</div>`
+      + gutter
+      /* Date takes the same Label md as the name above it and time the same
+         Body sm tertiary as the line under the name — one pattern for a stacked
+         cell, not two. */
+      + `<div style="${col(0,COLS.on.cell)}">`
+      + `<span style="${F.lblMd};color:var(--aira-text-primary);${tab}">${esc(c.date)}</span>`
+      + `<span class="quiet" style="${F.bodySm};color:${on ? 'var(--aira-text-secondary)'
+        : 'var(--aira-text-tertiary)'};${tab}">${esc(c.time)}</span>`
+      + `</div>`
+      + gutter
+      + `<div style="${row(0,COLS.act.cell)}">`
+      + `<span style="position:relative;display:flex;flex:none">`
+      + `<button class="reset${S.menu === c.id ? '' : ' hov'}" aria-haspopup="menu" `
+      + `aria-expanded="${S.menu === c.id}" `
+      + `style="${row(0,'justify-content:center')}width:32px;height:32px;`
+      + `margin:-6px -6px -6px -6px;`
+      + `border-radius:var(--aira-radius-md);color:var(--aira-text-secondary);`
+      + (S.menu === c.id ? 'background:var(--aira-bg-hover)' : '') + `"`
+      + named('Actions for ' + c.name, 'more:' + c.id) + `>${I.ellipsis(20)}</button>`
+      + rowMenu(c, i, total)
+      + `</span></div></div>`;
+  };
+
+  /* The menu is built from what this reader can actually do. A member looking at
+     an org context can read it and nothing else, so their menu holds one item —
+     rather than four greyed ones, which reads as a fault rather than a boundary.
+     It hangs off its own trigger, so it needs no row arithmetic, and it flips
+     upward on the last rows rather than opening into the table's bottom edge. */
+  function rowMenu(c, i, total) {
+    if (S.menu !== c.id) return '';
+    const items = [['View context', I.eye, 'view']];
+    if (canEdit(c)) {
+      if (c.archived) items.push(['Restore context', I.archiveRestore, 'restore']);
+      else {
+        items.push(['Edit context', I.squarePen, 'edit']);
+        items.push(['Archive context', I.archive, 'archive']);
+      }
+    }
+    const up = total > 4 && i >= total - 3;
+    return `<div class="menu" role="menu" style="${col(0,'position:absolute;right:0;'
+        + (up ? 'bottom:calc(100% + 4px);' : 'top:calc(100% + 4px);')
+        + 'width:232px;background:var(--aira-bg-elevated);'
+        + 'border:1px solid var(--aira-border-default);'
+        + 'border-radius:var(--aira-radius-md);box-shadow:var(--aira-shadow-lg);'
+        + 'padding:8px;z-index:4')}">`
+      + items.map(([t, g, act]) => `<button class="reset mitem" role="menuitem" `
+          + `style="${row(12,'padding:8px 12px;border-radius:var(--aira-radius-xs);'
+          + F.body + ';color:var(--aira-text-secondary)')}"`
+        + live('mi:' + act + ':' + c.id) + `>${g(ICON_WITH_LABEL)}${esc(t)}</button>`).join('')
+      + `</div>`;
+  }
+
+  /* Only the column the list is ordered by carries a sort mark; a mark on a
+     column that does not sort is a false affordance. */
+  /* One glyph, flipped — not a different shape per state. A shape that changes
+     reads as a different control rather than the same one pointing the other
+     way, and rotating makes the motion the answer. Tertiary, as the app listing
+     page paints it: the mark is a quiet affordance beside the heading, not a
+     highlight. A heading that does not sort carries no mark at all. */
+  const sortMark = () =>
+    `<span style="color:var(--aira-text-tertiary);display:flex;`
+    + `transform:rotate(${S.sort === 'asc' ? 180 : 0}deg);`
+    + `transition:transform var(--aira-motion-base) ease-out">`
+    + I.sortArrows(16) + `</span>`;
+  const hCell = (h, k, sorts) => {
+    const cell = row(4, `${COLS[k].cell};white-space:nowrap;`
+      + `color:var(--aira-text-primary);` + F.lblMd);
+    if (!sorts) return `<div style="${cell}">${esc(h)}</div>`;
+    return `<div role="columnheader" aria-sort="${
+        S.sort === 'asc' ? 'ascending' : 'descending'}"`
+      + ` style="${COLS[k].cell}">`
+      + `<button class="reset" style="${row(4,'white-space:nowrap;'
+        + 'color:var(--aira-text-primary);' + F.lblMd)}"`
+      + ` title="Sort by ${esc(h.toLowerCase())}"` + live('sort')
+      + `>${esc(h)}${sortMark()}</button></div>`;
+  };
+  const head = `<div style="${row(0,`padding:12px ${CELL}px;`
+      + 'position:sticky;top:0;z-index:2;flex:none;'
+      + 'background:var(--aira-bg-subtle);'
+      + 'border-bottom:1px solid var(--aira-border-default)')}">`
+    + hCell('Name', 'name', false) + gutter
+    + hCell('Scope', 'scope', false) + gutter
+    + hCell('Modified by', 'by', false) + gutter
+    + hCell('Modified on', 'on', true) + gutter
+    + `<div style="${row(0,`${COLS.act.cell};${F.lblMd};`
+      + `color:var(--aira-text-primary)`)}">Actions</div></div>`;
+
+  /* The count follows the filter. "7 contexts configured" while you are looking
+     at the archived list says something untrue about what is on screen. */
+  const countLabel = S.status === 'archived' ? plural(rows.length, 'archived context')
+                   : plural(rows.length, 'context');
+
+  return `<div style="${col(0,`flex-grow:1;min-height:0;`
+      + `padding:24px ${INSET}px 32px`)}">`
+    + `<div style="${row(0,'padding:0 0 20px')}">`
+    + `<h1 style="${F.h2};color:var(--aira-text-primary);margin:0">Context management</h1>`
+    + `<span style="flex-grow:1"></span>`
+    + iconBtn('Close settings', 'closesettings', I.x, 'var(--aira-text-tertiary)')
+    + `</div>`
+
+    + `<div style="${row(12,'padding:0 0 16px')}">`
+    + dropdown(SCOPES, 'scope', S.scope) + dropdown(STATUSES, 'status', S.status)
+    + `<label class="qwrap" style="${row(8,'flex:1;max-width:360px;height:36px;'
+      + 'border:1px solid var(--aira-border-default);border-radius:var(--aira-radius-md);'
+      + 'padding:0 12px;background:var(--aira-bg-elevated)')}">`
+    + `<span style="color:var(--aira-text-tertiary);display:flex">${I.search(16)}</span>`
+    + `<input class="qbox" id="qbox" type="text" value="${esc(S.query)}" `
+    + `placeholder="Search contexts" aria-label="Search contexts" `
+    + `style="${F.body};color:var(--aira-text-primary);border:0;background:none;`
+    + `padding:0;flex:1;min-width:0"` + live('q') + `></label>`
+    + `<span style="flex-grow:1"></span>`
+    + `<span style="${F.bodySm};color:var(--aira-text-tertiary);${tab}">${esc(countLabel)}</span>`
+    + `<span style="width:8px"></span>`
+    /* On an empty list the empty state carries the primary, so the filter bar
+       drops its own — two identical primaries is a hierarchy that has not been
+       decided. */
+    + (rows.length ? primaryBtn('Add context', 'add', I.plus) : '')
+    + `</div>`
+
+    + `<div style="${col(0,'flex-grow:1;min-height:0;'
+      + 'border-top:1px solid var(--aira-border-default)')}">`
+    + `<div class="scroller" id="ctxtable" `
+    + `style="${col(0,'flex-grow:1;min-height:0;overflow-y:auto')}">`
+    + head
+    + (rows.length ? rows.map((c, i) => ctxRow(c, i, rows.length)).join('')
+                   : emptyState())
+    + `</div></div></div>`;
+}
+
+
+/* ═══ Whitelist URLs ══════════════════════════════════════════════════════
+   The second settings section, built on the same chassis as Context: the same
+   column spec and computed gutters, the same row hover, the same drawer and the
+   same destructive modal. Two things genuinely differ. Whitelist is org-only —
+   there is no personal whitelist — so it carries no scope column and no scope
+   filter. And its entries are deleted rather than archived, which is why the
+   row menu ends in a destructive action where Context's ends in Archive.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+const WL_METHODS = ['GET', 'POST', 'PUT'];
+
+let WSEQ = 0;
+const wmk = o => Object.assign({
+  id:'w' + (++WSEQ), paths:[], methods:[], expires:null,
+  /* An expiry is a moment, not a day, so the date carries a time and a zone
+     beside it. 23:59 is the default because an expiry means "good until the end
+     of", and the org's own zone leads because that is what every other timestamp
+     on these screens is read in. */
+  expiryHM:'23:59', expiryTZ:'IST',
+  remarks:'', active:true,
+}, o);
+
+const WL_SEED = [
+  wmk({ domain:'https://api.loyalty.trendly.com',
+        paths:['/v2/members/*', '/v2/points/issue'], methods:['GET','POST'],
+        expires:'Mar 31, 2027', remarks:'Member lookup and points issue for the copilot.',
+        by:'rahul.kamath', date:'Sep 12, 2026', time:'10:22 AM IST' }),
+  wmk({ domain:'https://reports.trendly.com',
+        paths:['/v1/exports/*'], methods:['GET'],
+        expires:null, remarks:'Read-only export feed used by the weekly usage report.',
+        by:'bhaskar.priyadarshi', date:'Sep 3, 2026', time:'4:40 PM IST' }),
+  wmk({ domain:'https://tier-engine.trendly.com',
+        paths:['/tiers/*', '/tiers/*/history'], methods:['GET','POST','PUT'],
+        expires:'Jan 15, 2027', remarks:'',
+        by:'harsh.devda', date:'Aug 22, 2026', time:'11:58 AM IST' }),
+  wmk({ domain:'https://sandbox.trendly.com',
+        paths:['/v1/*'], methods:['GET','POST'],
+        expires:'Aug 31, 2026', remarks:'Sandbox trial for the tier migration work.',
+        by:'ann.francis', date:'Jul 30, 2026', time:'2:05 PM IST' }),
+  wmk({ domain:'https://legacy-crm.trendly.com',
+        paths:['/crm/customer/*'], methods:['GET'], active:false,
+        expires:null, remarks:'Turned off while the CRM migration runs.',
+        by:'chinmay', date:'Jun 18, 2026', time:'9:12 AM IST' }),
+];
+let WL = clone(WL_SEED);
+const WX = id => WL.find(w => w.id === id);
+
+/* Expiry is a date in the org's timezone, so "expired" is derived from it rather
+   than stored — a stored flag would be wrong the moment the date passed. */
+const NOW_STAMP = Date.parse(NOW.date);
+const wlState = w => !w.active ? 'inactive'
+  : (w.expires && Date.parse(w.expires) < NOW_STAMP) ? 'expired' : 'active';
+const WL_STATE = {
+  active:   { label:'Active',   dot:'var(--aira-text-success)' },
+  inactive: { label:'Inactive', dot:'var(--aira-text-tertiary)' },
+  expired:  { label:'Expired',  dot:'var(--aira-text-warning)' },
+};
+/* AiraChip with a status dot. Not a Pill — Pill is reserved for the six approval
+   lifecycle states, and these are not those. The dot carries the distinction
+   alongside the word, so it survives grayscale. */
+const wlChip = st => {
+  const t = WL_STATE[st];
+  /* inline-flex, not flex: as the only child of a block cell a flex span
+     stretches to the cell's width, which is what turned these into wide pills
+     with their label stranded at the left end. */
+  return `<span style="${row(6,`${F.lblSm};color:var(--aira-text-secondary);`
+      + 'background:var(--aira-bg-default);border:1px solid var(--aira-border-default);'
+      + 'border-radius:var(--aira-radius-pill);height:20px;padding:0 10px;'
+      + 'display:inline-flex;width:fit-content')}">`
+    + `<span aria-hidden="true" style="width:6px;height:6px;flex:none;`
+    + `border-radius:var(--aira-radius-pill);background:${t.dot}"></span>${t.label}</span>`;
+};
+
+const WCOLS = {
+  domain: { cell:'flex:1 1 0;min-width:200px' },
+  /* Measured, not guessed: the widest chip is 80px and the widest date 82px, so
+     a 104px status column and a 140px expiry column were each carrying 25-58px
+     of dead space that read as a wider gap than the gutter beside it. */
+  state:  { cell:'width:84px;flex:none' },
+  expiry: { cell:'width:88px;flex:none' },
+  by:     { cell:'flex:0 1 288px;min-width:180px' },
+  act:    { cell:'width:56px;flex:none' },
+};
+/* Domains are a narrow, predictable shape — the six seeded ones measure 165 to
+   193px — so unlike a free-text context name this column can be sized almost
+   exactly to its content and leave barely any rag. */
+const WL_FIXED = 84 + 88 + 288 + 56, WL_TARGET = 196;
+
+const WL_STATUSES = [['all','All'], ['active','Active'],
+                     ['inactive','Inactive'], ['expired','Expired']];
+
+const wlMatches = w => {
+  const q = S.wlQuery.trim().toLowerCase();
+  return !q || w.domain.toLowerCase().indexOf(q) >= 0
+            || email(w.by).toLowerCase().indexOf(q) >= 0
+            || w.paths.some(x => x.toLowerCase().indexOf(q) >= 0);
+};
+const wlRows = () => WL
+  .filter(w => (S.wlStatus === 'all' || wlState(w) === S.wlStatus) && wlMatches(w))
+  .sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
+
+function whitelistListing() {
+  const rows = wlRows();
+
+  const wlMenu = (w, i, total) => {
+    if (S.menu !== w.id) return '';
+    const items = [['View URL', I.eye, 'view']];
+    if (wlCanEdit()) {
+      items.push(['Edit URL', I.squarePen, 'edit']);
+      items.push(['Delete URL', I.trash, 'delete']);
+    }
+    const up = total > 4 && i >= total - 3;
+    return `<div class="menu" role="menu" style="${col(0,'position:absolute;right:0;'
+        + (up ? 'bottom:calc(100% + 4px);' : 'top:calc(100% + 4px);')
+        + 'width:216px;background:var(--aira-bg-elevated);'
+        + 'border:1px solid var(--aira-border-default);'
+        + 'border-radius:var(--aira-radius-md);box-shadow:var(--aira-shadow-lg);'
+        + 'padding:8px;z-index:4')}">`
+      + items.map(([t, g, a]) => `<button class="reset mitem" role="menuitem" `
+          + `style="${row(12,'padding:8px 12px;border-radius:var(--aira-radius-xs);'
+          + F.body + ';color:var(--aira-text-'
+          + (a === 'delete' ? 'danger' : 'secondary') + ')')}"`
+        + live('wlmi:' + a + ':' + w.id) + `>${g(ICON_WITH_LABEL)}${esc(t)}</button>`).join('')
+      + `</div>`;
+  };
+
+  const wlRow = (w, i, total) => {
+    const on = S.drawer && S.drawer.kind === 'wl' && S.drawer.id === w.id;
+    return `<div class="hov"` + live('wlopen:' + w.id)
+      + ` style="${row(0,`padding:12px ${CELL}px;cursor:pointer;`
+        + 'border-bottom:1px solid var(--aira-border-subtle);'
+        + (on ? 'background:var(--aira-bg-selected);' : ''))}">`
+      + `<div style="${row(8,WCOLS.domain.cell)}">`
+      + `<button class="reset namebtn" data-tip="${esc(w.domain)}" style="${F.lblMd};`
+      + `color:var(--aira-text-primary);${ellip};text-align:left;flex:0 1 auto;`
+      + `min-width:0;padding:8px 0;margin:-8px 0;position:relative"`
+      + live('wlopen:' + w.id) + `>${esc(w.domain)}</button></div>`
+      + gutter
+      + `<div style="${WCOLS.state.cell}">${wlChip(wlState(w))}</div>`
+      + gutter
+      + `<div style="${WCOLS.expiry.cell}"><span class="quiet" style="${F.body};`
+      + `color:var(--aira-text-${w.expires ? 'primary' : 'tertiary'});${tab}">`
+      + `${esc(w.expires || 'No expiry')}</span></div>`
+      + gutter
+      + `<div style="${WCOLS.by.cell}"><span title="${esc(email(w.by))}" style="${F.body};`
+      + `color:var(--aira-text-primary);display:block;${ellip}">`
+      + `${esc(email(w.by))}</span></div>`
+      + gutter
+      + `<div style="${row(0,WCOLS.act.cell)}">`
+      + `<span style="position:relative;display:flex;flex:none">`
+      + `<button class="reset${S.menu === w.id ? '' : ' hov'}" aria-haspopup="menu" `
+      + `aria-expanded="${S.menu === w.id}" `
+      + `style="${row(0,'justify-content:center')}width:32px;height:32px;`
+      + `margin:-6px -6px -6px -6px;`
+      + `border-radius:var(--aira-radius-md);color:var(--aira-text-secondary);`
+      + (S.menu === w.id ? 'background:var(--aira-bg-hover)' : '') + `"`
+      + named('Actions for ' + w.domain, 'wlmore:' + w.id) + `>${I.ellipsis(20)}</button>`
+      + wlMenu(w, i, total)
+      + `</span></div></div>`;
+  };
+
+  const hCell = (h, k) =>
+    `<div style="${row(4,`${WCOLS[k].cell};white-space:nowrap;`
+      + `color:var(--aira-text-primary);` + F.lblMd)}">${esc(h)}</div>`;
+  const head = `<div style="${row(0,`padding:12px ${CELL}px;`
+      + 'position:sticky;top:0;z-index:2;flex:none;'
+      + 'background:var(--aira-bg-subtle);'
+      + 'border-bottom:1px solid var(--aira-border-default)')}">`
+    + hCell('Domain', 'domain') + gutter
+    + hCell('Status', 'state') + gutter
+    + hCell('Expiry', 'expiry') + gutter
+    + hCell('Added by', 'by') + gutter
+    + hCell('Actions', 'act') + `</div>`;
+
+  const empty = () => {
+    const q = S.wlQuery.trim();
+    let title, body, cta = null;
+    if (q) {
+      title = 'No URLs match your search';
+      body  = 'No domain, path or author contains “' + q + '”. '
+            + 'Try a shorter word, or clear the search.';
+    } else if (S.wlStatus !== 'all') {
+      title = 'No ' + labelOf(WL_STATUSES, S.wlStatus).toLowerCase() + ' URLs';
+      body  = 'Nothing matches this filter. Try All.';
+    } else {
+      title = 'No whitelisted URLs yet';
+      body  = 'aiRA can only call an external service once its domain is on this '
+            + 'list, so add the ones your agents need to reach.';
+      cta   = wlCanCreate() ? 'Add URL' : null;
+    }
+    return `<div style="${col(8,'flex-grow:1;align-items:center;justify-content:center;'
+        + 'padding:64px 24px;text-align:center')}">`
+      + `<span style="color:var(--aira-text-tertiary);display:flex">${I.search(20)}</span>`
+      + `<span style="${F.h4};color:var(--aira-text-primary)">${esc(title)}</span>`
+      + `<span style="${F.bodySm};color:var(--aira-text-secondary);max-width:460px">`
+      + `${esc(body)}</span>`
+      + (cta ? `<span style="margin-top:8px">` + primaryBtn(cta, 'wladd', I.plus) + `</span>` : '')
+      + `</div>`;
+  };
+
+  return `<div style="${col(0,`flex-grow:1;min-height:0;padding:24px ${INSET}px 32px`)}">`
+    + `<div style="${row(0,'padding:0 0 20px')}">`
+    + `<h1 style="${F.h2};color:var(--aira-text-primary);margin:0">Whitelist URLs</h1>`
+    + `<span style="flex-grow:1"></span>`
+    + iconBtn('Close settings', 'closesettings', I.x, 'var(--aira-text-tertiary)')
+    + `</div>`
+
+    + `<div style="${row(12,'padding:0 0 16px')}">`
+    + dropdown(WL_STATUSES, 'wlstatus', S.wlStatus)
+    + `<label class="qwrap" style="${row(8,'flex:1;max-width:360px;height:36px;'
+      + 'border:1px solid var(--aira-border-default);border-radius:var(--aira-radius-md);'
+      + 'padding:0 12px;background:var(--aira-bg-elevated)')}">`
+    + `<span style="color:var(--aira-text-tertiary);display:flex">${I.search(16)}</span>`
+    + `<input class="qbox" id="wlqbox" type="text" value="${esc(S.wlQuery)}" `
+    + `placeholder="Search URLs" aria-label="Search whitelisted URLs" `
+    + `style="${F.body};color:var(--aira-text-primary);border:0;background:none;`
+    + `padding:0;flex:1;min-width:0"` + live('wlq') + `></label>`
+    + `<span style="flex-grow:1"></span>`
+    + `<span style="${F.bodySm};color:var(--aira-text-tertiary);${tab}">`
+    + `${esc(plural(rows.length, 'URL'))}</span>`
+    + `<span style="width:8px"></span>`
+    + (rows.length && wlCanCreate() ? primaryBtn('Add URL', 'wladd', I.plus) : '')
+    + `</div>`
+
+    + `<div style="${col(0,'flex-grow:1;min-height:0;'
+      + 'border-top:1px solid var(--aira-border-default)')}">`
+    + `<div class="scroller" id="wltable" `
+    + `style="${col(0,'flex-grow:1;min-height:0;overflow-y:auto')}">`
+    + head
+    + (rows.length ? rows.map((w, i) => wlRow(w, i, rows.length)).join('') : empty())
+    + `</div></div></div>`;
+}
+
+/* ── the whitelist drawer — add, edit and view in one surface ───────────── */
+
+const wlBlank = () => wmk({ domain:'', paths:[''], methods:['GET'], expires:null,
+                            remarks:'', active:true, by:ME,
+                            date:NOW.date, time:NOW.time });
+
+/* AiraCheckbox. Custom-rendered rather than native so it carries the system's
+   own box, tick and focus ring — and so a disabled read-only view can render the
+   same control without a browser's default grey. */
+function checkbox(label, key, on, disabled) {
+  return `<button class="reset${disabled ? '' : ' hov'}" role="checkbox" `
+    + `aria-checked="${!!on}"${disabled ? ' disabled aria-disabled="true"' : ''} `
+    + `style="${row(8,'padding:6px 8px;margin:-6px -8px;'
+      + 'border-radius:var(--aira-radius-md);' + F.body
+      + ';color:var(--aira-text-primary)')}"`
+    + (disabled ? '' : live(key)) + `>`
+    + `<span aria-hidden="true" style="${row(0,'justify-content:center')}width:16px;`
+    + `height:16px;flex:none;border-radius:var(--aira-radius-xs);`
+    + (on ? 'background:var(--aira-bg-brand);color:var(--aira-text-inverse);'
+          + 'border:1px solid var(--aira-bg-brand)'
+          : 'border:1px solid var(--aira-border-strong)') + `">`
+    + (on ? I.check(14) : '') + `</span>${esc(label)}</button>`;
+}
+
+
+/* ── AiraDatePicker ──────────────────────────────────────────────────────
+   Ported from the reskin's own .aira-datepicker rather than invented: a 280px
+   popover under the trigger, a 26px nav pair, a 7-column grid of square days,
+   and a Clear / Today footer above a rule. v1.1 has no date picker of its own —
+   new-components.md still lists one as unbuilt — so the reskin is the closest
+   thing to a spec, and the browser's native control is the thing it replaces.
+   ──────────────────────────────────────────────────────────────────────── */
+
+const DP_MONTHS = ['January','February','March','April','May','June','July',
+                   'August','September','October','November','December'];
+const DP_SHORT  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DP_DOW    = ['S','M','T','W','T','F','S'];
+const dpToday   = new Date(NOW.date);
+const dpFmt     = (y, m, d) => DP_SHORT[m] + ' ' + d + ', ' + y;
+
+function datePicker(value, keyBase) {
+  const open = S.dpOpen;
+  const sel  = value ? new Date(value) : null;
+  const view = S.dpView
+    || (sel ? { y:sel.getFullYear(), m:sel.getMonth() }
+            : { y:dpToday.getFullYear(), m:dpToday.getMonth() });
+
+  const first = new Date(view.y, view.m, 1).getDay();
+  const days  = new Date(view.y, view.m + 1, 0).getDate();
+  const prevDays = new Date(view.y, view.m, 0).getDate();
+
+  const cells = [];
+  for (let i = 0; i < first; i++)
+    cells.push({ d: prevDays - first + 1 + i, out:true });
+  for (let d = 1; d <= days; d++) cells.push({ d, out:false });
+  while (cells.length % 7) cells.push({ d: cells.length - first - days + 1, out:true });
+
+  const dayBtn = c => {
+    const isSel = !sel || c.out ? false
+      : (sel.getFullYear() === view.y && sel.getMonth() === view.m && sel.getDate() === c.d);
+    const isToday = !c.out && dpToday.getFullYear() === view.y
+      && dpToday.getMonth() === view.m && dpToday.getDate() === c.d;
+    const ink = isSel ? 'var(--aira-text-inverse)'
+              : c.out ? 'var(--aira-text-disabled)'
+              : isToday ? 'var(--aira-text-link)' : 'var(--aira-text-primary)';
+    return `<button class="reset${c.out ? '' : ' hov'}" role="gridcell"`
+      + (isSel ? ' aria-selected="true"' : '')
+      + ` style="${row(0,'justify-content:center')}aspect-ratio:1;`
+      + `font:${isSel || isToday ? 600 : 400} 13px/20px Roboto,system-ui,sans-serif;`
+      + `border-radius:var(--aira-radius-sm);color:${ink};${tab};`
+      + (isSel ? 'background:var(--aira-bg-brand);' : '') + `"`
+      + (c.out ? '' : live('dpday:' + view.y + '-' + view.m + '-' + c.d))
+      + `>${c.d}</button>`;
+  };
+
+  const navBtn = (label, key, glyph) =>
+    `<button class="reset hov" style="${row(0,'justify-content:center')}width:26px;`
+    + `height:26px;border-radius:var(--aira-radius-sm);`
+    + `color:var(--aira-text-secondary)"` + named(label, key) + `>${glyph(16)}</button>`;
+
+  const linkBtn = (label, key) =>
+    `<button class="reset dplink" style="${F.bodySm};font-weight:500;`
+    + `color:var(--aira-text-link)"` + live(key) + `>${esc(label)}</button>`;
+
+  const popover = !open ? '' :
+    `<div id="dppop" onclick="event.stopPropagation()" style="${col(0,'position:absolute;'
+      + 'top:calc(100% + 4px);left:0;z-index:45;width:280px;padding:16px;'
+      + 'background:var(--aira-bg-elevated);border:1px solid var(--aira-border-default);'
+      + 'border-radius:var(--aira-radius-lg);box-shadow:var(--aira-shadow-md)')}">`
+    + `<div style="${row(0,'justify-content:space-between;margin-bottom:12px')}">`
+    + `<span style="${F.lblMd};font-weight:600;color:var(--aira-text-primary)">`
+    + `${DP_MONTHS[view.m]} ${view.y}</span>`
+    + `<span style="${row(2)}">`
+    + navBtn('Previous month', 'dpprev', I.chevronLeft)
+    + navBtn('Next month', 'dpnext', I.chevronRight) + `</span></div>`
+    + `<div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;`
+    + `margin-bottom:4px">`
+    + DP_DOW.map(d => `<span style="${F.over};color:var(--aira-text-tertiary)">${d}</span>`).join('')
+    + `</div>`
+    + `<div role="grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">`
+    + cells.map(dayBtn).join('') + `</div>`
+    /* An expiry is a moment, so the calendar carries the time beside it rather
+       than leaving it at an assumed midnight. One field and one pair of radios
+       — the system has no time picker, and three stacked dropdowns in a 280px
+       popover would be a component invented to avoid a text box. */
+    + `<div style="${row(8,'margin-top:12px;padding-top:12px;'
+      + 'border-top:1px solid var(--aira-border-default)')}">`
+    + `<span style="${F.lblSm};color:var(--aira-text-secondary);flex:none">Time</span>`
+    + `<label class="qwrap" style="${row(0,'width:64px;height:28px;flex:none;'
+      + 'border:1px solid var(--aira-border-default);'
+      + 'border-radius:var(--aira-radius-md);padding:0 8px;'
+      + 'background:var(--aira-bg-elevated)')}">`
+    + `<input class="qbox" id="dphm" type="text" value="${esc(S.form.expiryHM)}" `
+    + `inputmode="numeric" aria-label="Expiry time, 24-hour" `
+    + `style="${F.bodySm};color:var(--aira-text-primary);border:0;background:none;`
+    + `padding:0;width:100%;${tab}"` + live('dphm') + `></label>`
+    + tzPicker() + `</div>`
+    + `<div style="${row(0,'justify-content:space-between;margin-top:12px;padding-top:12px;'
+      + 'border-top:1px solid var(--aira-border-default)')}">`
+    + linkBtn('Clear', 'dpclear') + linkBtn('Today', 'dptoday') + `</div></div>`;
+
+  return `<div style="position:relative;width:fit-content">`
+    + `<button class="reset" aria-haspopup="dialog" aria-expanded="${open}" `
+    + `style="${row(8,'height:36px;min-width:220px;padding:0 12px;'
+      + 'justify-content:space-between;'
+      + `border:1px solid var(--aira-border-${open ? 'focus' : 'default'});`
+      + 'border-radius:var(--aira-radius-md);background:var(--aira-bg-elevated);'
+      + F.body + ';color:var(--aira-text-'
+      + (value ? 'primary' : 'placeholder') + ')')}"`
+    + named('Expiry date', 'dptoggle') + `>`
+    + `<span style="${tab}">${esc(value
+        ? value + ', ' + S.form.expiryHM + ' ' + S.form.expiryTZ
+        : 'Select a date')}</span>`
+    + `<span style="color:var(--aira-text-tertiary);display:flex">`
+    + I.calendar(16) + `</span></button>`
+    + popover + `</div>`;
+}
+
+/* AiraDropdown, sized for the picker rather than the filter bar. Nine zones is
+   past the five at which options stop being worth showing all at once, so this
+   is a dropdown and not a radio group. It opens upward: the time row is the
+   bottom of the calendar, and a list dropping below it would fall out of the
+   popover. */
+function tzPicker() {
+  const open = S.menu === '__dptz';
+  const sel = S.form.expiryTZ;
+  return `<span style="position:relative;display:inline-flex;flex:none">`
+    + `<button class="reset hov" aria-haspopup="listbox" aria-expanded="${open}" `
+    + `style="${row(4,'height:28px;padding:0 6px 0 10px;'
+      + 'border:1px solid var(--aira-border-default);'
+      + 'border-radius:var(--aira-radius-md);' + F.bodySm
+      + ';color:var(--aira-text-primary);white-space:nowrap')}"`
+    + named('Expiry time zone', 'dptz') + `>${esc(sel)}`
+    + `<span style="color:var(--aira-text-tertiary);display:flex">`
+    + I.chevronDown(14) + `</span></button>`
+    + (open
+      ? `<div class="menu" role="listbox" style="${col(0,'position:absolute;right:0;'
+          + 'bottom:calc(100% + 4px);width:200px;max-height:220px;overflow-y:auto;'
+          + 'background:var(--aira-bg-elevated);'
+          + 'border:1px solid var(--aira-border-default);'
+          + 'border-radius:var(--aira-radius-md);box-shadow:var(--aira-shadow-lg);'
+          + 'padding:8px;z-index:6')}">`
+        + TZONES.map(([k, t]) => `<button class="reset mitem${k === sel ? ' sel' : ''}" `
+          + `role="option" aria-selected="${k === sel}" style="${row(8,'padding:8px 12px;'
+            + 'border-radius:var(--aira-radius-xs);' + F.bodySm
+            + ';color:var(--aira-text-secondary);white-space:nowrap')}"`
+          + live('dptz:' + k) + `>`
+          + `<span style="flex:1;min-width:0;text-align:left">${esc(t)}</span>`
+          + (k === sel ? `<span style="flex:none;display:flex;color:var(--aira-text-link)">`
+              + I.check(14) + `</span>` : '') + `</button>`).join('')
+        + `</div>`
+      : '')
+    + `</span>`;
+}
+
+function wlDrawer() {
+  if (!S.drawer || S.drawer.kind !== 'wl') return '';
+  const mode = S.drawer.mode, readOnly = mode === 'view';
+  const w = S.form;
+  const title = mode === 'add' ? 'Add whitelist URL'
+              : mode === 'edit' ? 'Edit whitelist URL' : w.domain;
+
+  const header = `<div style="${col(4,'padding:20px 24px 16px;flex:none;'
+      + 'border-bottom:1px solid var(--aira-border-default)')}">`
+    + `<div style="${rowTop(12)}">`
+    + `<span style="${col(4,'flex:1;min-width:0')}">`
+    + `<h2 id="drawertitle" style="${F.h3};color:var(--aira-text-primary);margin:0;${ellip}" `
+    + `title="${esc(title)}">${esc(title)}</h2></span>`
+    + iconBtn('Close URL drawer', 'wlclose', I.x) + `</div></div>`;
+
+  const fact = (label, value) =>
+    `<span style="${col(2,'min-width:0')}">`
+    + `<span style="${F.lblSm};color:var(--aira-text-tertiary)">${esc(label)}</span>`
+    + `<span style="${F.body};color:var(--aira-text-primary);${ellip}" `
+    + `title="${esc(value)}">${esc(value)}</span></span>`;
+  const block = (label, inner) => `<div style="${col(8)}">`
+    + `<span style="${F.lblMd};color:var(--aira-text-primary)">${esc(label)}</span>`
+    + inner + `</div>`;
+  const readList = items => `<div style="${col(8)}">` + items.map(t =>
+      `<div style="${row(8,'height:36px;padding:0 12px;'
+        + 'border:1px solid var(--aira-border-default);'
+        + 'border-radius:var(--aira-radius-md);' + F.mono
+        + ';color:var(--aira-text-primary);' + ellip)}">${esc(t)}</div>`).join('') + `</div>`;
+
+  let body;
+  if (readOnly) {
+    body = `<div style="${col(32,'padding:24px')}">`
+      + `<div style="${row(32,'flex-wrap:wrap')}">`
+      + `<span style="${col(4,'min-width:0;align-items:flex-start')}">`
+      + `<span style="${F.lblSm};color:var(--aira-text-tertiary)">Status</span>`
+      + wlChip(wlState(w)) + `</span>`
+      + fact('Added by', email(w.by))
+      + fact('Added on', w.date + ', ' + w.time)
+      + `</div>`
+      + `<div role="separator" style="height:1px;flex:none;`
+      + `background:var(--aira-border-subtle)"></div>`
+      + block('Domain URL', `<div style="${F.body};color:var(--aira-text-secondary);`
+          + `word-break:break-all">${esc(w.domain)}</div>`)
+      + block('Path patterns', readList(w.paths.filter(x => x.trim())))
+      + block('HTTP methods', `<div style="${row(8,'flex-wrap:wrap')}">`
+          + w.methods.map(m => `<span style="${F.lblSm};`
+              + `color:var(--aira-text-secondary);background:var(--aira-bg-muted);`
+              + `border-radius:var(--aira-radius-pill);height:20px;padding:0 ${TAG_PAD}px;`
+              + `display:inline-flex;align-items:center">${m}</span>`).join('')
+          + `</div>`)
+      + block('Expiry', `<div style="${F.body};color:var(--aira-text-secondary);${tab}">`
+          + `${esc(w.expires ? w.expires + ', ' + w.expiryHM + ' ' + w.expiryTZ
+                             : 'No expiry')}</div>`)
+      + (w.remarks.trim()
+          ? block('Remarks', `<div style="${F.body};color:var(--aira-text-secondary);`
+              + `white-space:pre-wrap">${esc(w.remarks)}</div>`)
+          : '')
+      + `</div>`;
+  } else {
+    const err = S.submitted ? wlErrors() : {};
+    body = `<div style="${col(20,'padding:24px')}">`
+      + field('wdomain', 'Domain URL', true,
+          textInput('wdomain', w.domain, 'https://example.com', 'wldomain',
+                    { required:true, invalid:!!err.domain, describedBy:'wdomain-msg' }),
+          null, err.domain)
+      /* Several paths per domain, each its own row, because a single field
+         holding a comma list hides which pattern is malformed. */
+      + `<div style="${col(8)}">`
+      + `<label for="wpath0" style="${F.lblMd};color:var(--aira-text-primary)">Path patterns`
+      + `<span style="color:var(--aira-text-danger)"> *</span></label>`
+      /* The remove control lives inside the field rather than beside it. Outside,
+         it took 40px out of the row and left every path pattern shorter than the
+         Domain field above it — fields in one column have to share one edge. */
+      + w.paths.map((pth, i) => {
+          const many = w.paths.length > 1;
+          return `<div class="qwrap" style="${row(4,'height:36px;'
+            + 'border:1px solid var(--aira-border-default);'
+            + `border-radius:var(--aira-radius-md);padding:0 ${many ? 4 : 12}px 0 12px;`
+            + 'background:var(--aira-bg-elevated)')}">`
+          + `<input class="qbox" id="wpath${i}" type="text" value="${esc(pth)}" `
+          + `placeholder="/v1/api/*" aria-label="Path pattern ${i + 1}" `
+          + `style="${F.body};color:var(--aira-text-primary);border:0;background:none;`
+          + `padding:0;flex:1;min-width:0"` + live('wlpath:' + i) + `>`
+          + (many
+              ? `<button class="reset hov" style="${row(0,'justify-content:center')}`
+                + `width:28px;height:28px;flex:none;border-radius:var(--aira-radius-sm);`
+                + `color:var(--aira-text-tertiary)"`
+                + named('Remove path pattern ' + (i + 1), 'wlpathdel:' + i)
+                + `>${I.trash(16)}</button>`
+              : '')
+          + `</div>`;
+        }).join('')
+      + ghostBtn('Add path pattern', 'wlpathadd', I.plus)
+      + (err.paths ? `<span id="wpath-msg" role="alert" style="${row(8,F.bodySm
+            + ';color:var(--aira-text-danger)')}">${I.circleAlert(16)}${esc(err.paths)}</span>`
+          : '')
+      + `</div>`
+      + `<div style="${col(8)}">`
+      + `<span style="${F.lblMd};color:var(--aira-text-primary)">HTTP methods`
+      + `<span style="color:var(--aira-text-danger)"> *</span></span>`
+      + `<div style="${row(20,'flex-wrap:wrap')}">`
+      + WL_METHODS.map(m => checkbox(m, 'wlmethod:' + m,
+          w.methods.indexOf(m) >= 0, false)).join('')
+      + `</div>`
+      + (err.methods ? `<span role="alert" style="${row(8,F.bodySm
+            + ';color:var(--aira-text-danger)')}">${I.circleAlert(16)}${esc(err.methods)}</span>`
+          : '')
+      + `</div>`
+      /* A native date control on purpose: v1.1 has no date picker — the
+         watchlist in new-components.md still lists one as unbuilt — and the live
+         product uses the browser's. Inventing one here would put a component on
+         screen that nobody can ship. */
+      + `<div style="${col(8)}">`
+      + `<span style="${F.lblMd};color:var(--aira-text-primary)">Expiry date</span>`
+      + datePicker(w.expires, 'wlexpires') + `</div>`
+      + `<div style="${col(8)}">`
+      + `<label for="wrem" style="${F.lblMd};color:var(--aira-text-primary)">Remarks</label>`
+      + `<div class="qwrap" style="${col(0,'border:1px solid var(--aira-border-default);'
+        + 'border-radius:var(--aira-radius-md);overflow:hidden')}">`
+      + `<textarea class="tbox" id="wrem" rows="3" `
+      + `style="${F.body};color:var(--aira-text-primary);border:0;background:none;`
+      + `padding:12px;min-height:76px;width:100%"` + live('wlremarks')
+      + `>${esc(w.remarks)}</textarea></div></div>`
+      + checkbox('Active', 'wlactive', w.active, false)
+      + `</div>`;
+  }
+
+  const canSave = !readOnly && (mode === 'add' || wlDirty());
+  const footer = `<div style="${row(8,'padding:16px 24px;flex:none;justify-content:flex-end;'
+      + 'border-top:1px solid var(--aira-border-default)')}">`
+    + (readOnly
+        ? (wlCanEdit()
+            ? ghostBtn('Close', 'wlclose') + primaryBtn('Edit URL', 'wledit', I.squarePen)
+            : ghostBtn('Close', 'wlclose'))
+        : ghostBtn('Cancel', 'wlclose')
+          + primaryBtn(mode === 'add' ? 'Create URL' : 'Save changes', 'wlsave', null,
+                       { disabled: !canSave }))
+    + `</div>`;
+
+  return `<div style="${row(0,'position:absolute;inset:0;justify-content:flex-end;'
+      + 'background:var(--aira-bg-scrim);z-index:6')}"` + live('wlclose') + `>`
+    + `<div id="ctxdrawer" role="dialog" aria-modal="true" aria-labelledby="drawertitle" `
+    + `style="${col(0,`width:${DRAWER_W}px;max-width:100%;height:100%;`
+      + 'background:var(--aira-bg-elevated);box-shadow:var(--aira-shadow-lg)')}" `
+    + `onclick="event.stopPropagation()">`
+    + header
+    + `<div class="scroller" id="dscroll" style="${col(0,'flex:1;min-height:0;'
+      + 'overflow-y:auto')}"` + live('dpclose') + `>` + body + `</div>`
+    + footer + `</div></div>`;
+}
+
+const wlDirty = () => !!S.form && !!S.pristine
+  && JSON.stringify(S.form) !== JSON.stringify(S.pristine);
+
+function wlErrors() {
+  const w = S.form, e = {};
+  const d = w.domain.trim();
+  if (!d) e.domain = 'Give the domain before saving';
+  else if (!/^https?:\/\/[^\s/]+\.[^\s/]+/.test(d))
+    e.domain = 'Start with http:// or https:// and a full domain';
+  if (!w.paths.some(x => x.trim())) e.paths = 'Add at least one path pattern';
+  if (!w.methods.length) e.methods = 'Choose at least one method';
+  return e;
+}
+
+function wlOpen(mode, id) {
+  const src = id ? WX(id) : null;
+  S.drawer = { kind:'wl', mode, id: id || null };
+  S.form = src ? clone(src) : wlBlank();
+  S.pristine = clone(S.form);
+  S.submitted = false; S.menu = null; S.dpOpen = false; S.dpView = null;
+}
+
+/* ═══ the drawer ═════════════════════════════════════════════════════════
+   Add, edit and view are one surface in three modes. A drawer rather than a
+   centred modal: it is the pattern almost every other secondary aiRA surface
+   already uses, and it leaves the list it came from visible behind it. ──── */
+
+const DRAWER_W = 760;
+
+/* AiraField — label, control, helper and error composed, with the parts wired
+   together: label/for to the control's id, the message linked by
+   aria-describedby, and the required state carried by aria-required rather than
+   by a decorative asterisk the screen reader never reaches. */
+function field(id, label, req, controlHtml, hint, error) {
+  const msg = error || hint;
+  return `<div style="${col(8)}">`
+    + `<label for="${id}" style="${F.lblMd};color:var(--aira-text-primary)">${esc(label)}`
+    + (req ? `<span style="color:var(--aira-text-danger)"> *</span>` : '') + `</label>`
+    + controlHtml
+    + (msg
+       ? `<span id="${id}-msg"${error ? ' role="alert"' : ''} style="${
+           error ? row(8, F.bodySm + ';color:var(--aira-text-danger)')
+                 : F.bodySm + ';color:var(--aira-text-tertiary)'}">`
+         + (error ? I.circleAlert(16) : '') + esc(msg) + `</span>`
+       : '')
+    + `</div>`;
+}
+
+function textInput(id, value, ph, key, opts={}) {
+  const inv = !!opts.invalid;
+  return `<label class="qwrap" style="${row(8,'height:36px;'
+    + `border:1px solid ${inv ? 'var(--aira-text-danger)' : 'var(--aira-border-default)'};`
+    + 'border-radius:var(--aira-radius-md);padding:0 12px;background:var(--aira-bg-elevated)')}">`
+    + `<input class="qbox" id="${id}" type="text" value="${esc(value)}" placeholder="${esc(ph)}"`
+    + (opts.label ? ` aria-label="${esc(opts.label)}"` : '')
+    + (opts.required ? ' aria-required="true"' : '')
+    + (inv ? ' aria-invalid="true"' : '')
+    + (opts.describedBy ? ` aria-describedby="${opts.describedBy}"` : '')
+    + ` style="${F.body};color:var(--aira-text-primary);border:0;background:none;padding:0;`
+    + `flex:1;min-width:0"` + live(key) + `></label>`;
+}
+
+/* Never a native select. For a member the Org option stays visible and disabled
+   with the reason attached — removing it would leave them wondering whether org
+   context exists at all. */
+function scopeDropdown() {
+  const open = S.menu === '__fscope';
+  const val = S.form.scope;
+  const opts = [['org','Org'], ['user','User']];
+  const locked = k => k === 'org' && !canEditOrg();
+  return `<span style="position:relative;display:block">`
+    + `<button class="reset hov" id="fscope" aria-haspopup="listbox" aria-expanded="${open}" `
+    + `style="${row(8,'width:100%;height:36px;border:1px solid var(--aira-border-default);'
+      + 'border-radius:var(--aira-radius-md);padding:0 12px 0 16px;' + F.body
+      + ';color:var(--aira-text-primary)')}"` + live('fscope') + `>`
+    + `<span style="flex:1;min-width:0;text-align:left">${esc(labelOf(opts, val))}</span>`
+    + `<span style="color:var(--aira-text-tertiary);display:flex">${I.chevronDown(14)}</span></button>`
+    + (open
+      ? `<div class="menu" role="listbox" style="${col(0,'position:absolute;left:0;right:0;'
+          + 'top:calc(100% + 4px);background:var(--aira-bg-elevated);'
+          + 'border:1px solid var(--aira-border-default);border-radius:var(--aira-radius-md);'
+          + 'box-shadow:var(--aira-shadow-lg);padding:8px;z-index:5')}">`
+        + opts.map(([k, t]) => {
+            const off = locked(k);
+            return `<button class="reset mitem${k === val ? ' sel' : ''}" role="option" `
+              + `aria-selected="${k === val}"${off ? ' disabled aria-disabled="true"' : ''} `
+              + `style="${rowTop(8,'padding:8px 12px;border-radius:var(--aira-radius-xs);'
+                + F.body + ';color:var(--aira-text-secondary)')}"`
+              + (off ? '' : live('fscope:' + k)) + `>`
+              + `<span style="${col(4,'flex:1;min-width:0;text-align:left')}">`
+              + `<span>${esc(t)}</span>`
+              + (off ? `<span style="${F.bodySm};color:var(--aira-text-tertiary)">`
+                       + `Only a super admin can add an org context</span>` : '')
+              + `</span>`
+              + (off ? `<span style="flex:none;display:flex;color:var(--aira-text-tertiary)">`
+                       + I.lock(16) + `</span>` : '')
+              + (k === val ? `<span style="flex:none;display:flex;color:var(--aira-text-link)">`
+                       + I.check(16) + `</span>` : '') + `</button>`;
+          }).join('')
+        + `</div>`
+      : '')
+    + `</span>`;
+}
+
+/* The formatting strip is inert — v1.1 has no rich-text editor, so this is a
+   composition standing in for one. It is grouped the way the work is grouped:
+   weight, then block structure, then what you insert, then alignment, then the
+   two history controls, then clear. Dividers carry the grouping so the reader
+   does not have to infer it from spacing, and the whole strip is aria-hidden
+   with no tab stop because none of it does anything yet. */
+const RTE_GROUPS = [
+  [['Bold', I.bold], ['Italic', I.italic], ['Underline', I.underline],
+   ['Strikethrough', I.strikethrough]],
+  [['Heading 1', I.heading1], ['Heading 2', I.heading2], ['Heading 3', I.heading3],
+   ['Bulleted list', I.list], ['Numbered list', I.listOrdered], ['Quote', I.quote]],
+  [['Insert link', I.link], ['Remove link', I.unlink], ['Code', I.code],
+   ['Insert table', I.table]],
+  [['Align left', I.alignLeft], ['Align centre', I.alignCenter],
+   ['Align right', I.alignRight]],
+  [['Undo', I.undo], ['Redo', I.redo]],
+  [['Clear formatting', I.removeFormatting]],
+];
+const rteToolbar = () =>
+  `<div aria-hidden="true" style="${row(4,'padding:8px;background:var(--aira-bg-subtle);'
+    + 'border-bottom:1px solid var(--aira-border-default);flex-wrap:wrap')}">`
+  + RTE_GROUPS.map((group, gi) =>
+      /* The strip's own 4px gap already sits on both sides of a divider, so a
+         margin on top of it is what pushed the last control onto a second row. */
+      (gi ? `<span style="width:1px;height:20px;flex:none;`
+            + `background:var(--aira-border-default)"></span>` : '')
+      + group.map(([label, glyph]) =>
+          `<span title="${esc(label)}" style="${row(0,'justify-content:center')}width:28px;`
+          + `height:28px;flex:none;border-radius:var(--aira-radius-sm);`
+          + `color:var(--aira-text-secondary)">${glyph(16)}</span>`).join('')).join('')
+  + `</div>`;
+
+function attachmentBlock(readOnly) {
+  const list = S.form.attachments;
+  if (readOnly && !list.length) return '';
+  const fileRow = (a, i) =>
+    `<div style="${row(12,'height:44px;padding:0 8px 0 12px;'
+      + 'border:1px solid var(--aira-border-default);border-radius:var(--aira-radius-md)')}">`
+    + `<span style="color:var(--aira-text-tertiary);display:flex">${I.paperclip(16)}</span>`
+    + `<span style="${F.body};color:var(--aira-text-primary);flex:1;min-width:0;${ellip}">`
+    + `${esc(a.name)}</span>`
+    + `<span style="${F.bodySm};color:var(--aira-text-tertiary);flex:none;${tab}">`
+    + `${esc(a.size)}</span>`
+    + `<span style="${row(4,'flex:none')}">`
+    + iconBtn('Download ' + a.name, 'attget:' + i, I.download)
+    + (readOnly ? '' : iconBtn('Remove ' + a.name, 'attdel:' + i, I.trash))
+    + `</span></div>`;
+  return `<div style="${col(8)}">`
+    + `<span style="${F.lblMd};color:var(--aira-text-primary)">Attachments</span>`
+    + (list.length
+        ? `<div style="${col(8)}">` + list.map(fileRow).join('') + `</div>`
+        : (readOnly
+            ? `<span style="${F.bodySm};color:var(--aira-text-tertiary)">`
+              + `No files attached</span>`
+            : ''))
+    + (readOnly ? '' : ghostBtn('Attach file', 'attadd', I.paperclip))
+    + `</div>`;
+}
+
+/* Two key types, and the row says which — the type decides what the value even
+   is, and a single-line field cannot hold an OAuth block. A value is write-only:
+   it is never rendered back, here or anywhere else. */
+function keysBlock(readOnly) {
+  const keys = S.form.keys;
+  if (readOnly && !keys.length) return '';
+  const head = `<button class="reset" aria-expanded="${S.keysOpen}" `
+    + `style="${row(8,'padding:8px 0')}"` + live('keys') + `>`
+    + `<span aria-hidden="true" style="color:var(--aira-text-tertiary);display:flex;`
+    + `transform:rotate(${S.keysOpen?90:0}deg);`
+    + `transition:transform var(--aira-motion-fast) ease-out">${I.chevronRight(16)}</span>`
+    + `<span style="${F.lblMd};color:var(--aira-text-primary)">`
+    + `${readOnly ? 'Context keys' : 'Manage context keys'}</span>`
+    + `<span style="${F.lblSm};color:var(--aira-text-secondary);background:var(--aira-bg-muted);`
+    + `border-radius:var(--aira-radius-pill);padding:4px 8px;${tab}">${keys.length}</span>`
+    + `</button>`;
+
+  if (!S.keysOpen) {
+    return `<div style="${col(8,'padding-top:8px;'
+      + 'border-top:1px solid var(--aira-border-subtle)')}">` + head
+      + `</div>`;
+  }
+
+  const keyRow = (k, i) => {
+    if (S.keyEdit === i) {
+      return `<div style="${col(8,'padding:12px;'
+        + 'border:1px solid var(--aira-border-focus);border-radius:var(--aira-radius-md);'
+        + 'background:var(--aira-bg-elevated)')}">`
+        + `<div style="${rowTop(8)}">`
+        + `<span style="flex:1;min-width:0">`
+        + field('kname', 'Key name', true, textInput('kname', k.name, '', 'kname'))
+        + `</span>`
+        + `<span style="${row(4,'padding-top:24px')}">`
+        + iconBtn('Save key', 'ksave', I.check, 'var(--aira-text-link)')
+        + iconBtn('Cancel key edit', 'kcancel', I.x, 'var(--aira-text-tertiary)')
+        + `</span>`
+        + `</div>`
+        + (k.type === 'oauth'
+          ? `<span style="${row(8,F.bodySm + ';color:var(--aira-text-secondary)')}">`
+            + I.braces(16) + `An OAuth key is edited as JSON. Use Bulk edit.</span>`
+          : field('kval', 'New value', false, textInput('kval', '', '', 'kval')))
+        + `</div>`;
+    }
+    return `<div style="${row(12,'height:44px;padding:0 8px 0 12px;'
+      + 'border:1px solid var(--aira-border-default);border-radius:var(--aira-radius-md)')}">`
+      + `<span style="color:var(--aira-text-tertiary);display:flex">${I.keyRound(16)}</span>`
+      + `<span style="${F.body};color:var(--aira-text-primary);flex:1;min-width:0;${ellip}">`
+      + `${esc(k.name)}</span>`
+      + keyTypeTag(k.type)
+      + (readOnly ? ''
+        : `<span style="${row(4,'flex:none')}">`
+          + iconBtn('Edit ' + k.name, 'kedit:' + i, I.squarePen)
+          + iconBtn('Delete ' + k.name, 'kdel:' + i, I.trash) + `</span>`)
+      + `</div>`;
+  };
+
+  return `<div style="${col(12,'padding-top:8px;'
+    + 'border-top:1px solid var(--aira-border-subtle)')}">`
+    + `<div style="${row(0)}">${head}<span style="flex-grow:1"></span>`
+    + (readOnly ? '' : ghostBtn('Bulk edit', 'bulk')) + `</div>`
+    + `<span style="${F.bodySm};color:var(--aira-text-tertiary)">`
+    + `aiRA sees the key name, never the value.</span>`
+    + (keys.length
+        ? `<div style="${col(8)}">` + keys.map(keyRow).join('') + `</div>`
+        : `<div style="${col(4,'align-items:center;padding:20px;'
+            + 'border:1px dashed var(--aira-border-strong);'
+            + 'border-radius:var(--aira-radius-md)')}">`
+          + `<span style="color:var(--aira-text-tertiary);display:flex">${I.lock(20)}</span>`
+          + `<span style="${F.bodySm};color:var(--aira-text-secondary)">`
+          + `No keys on this context</span></div>`)
+    + (readOnly ? '' : ghostBtn('Add key', 'addkey'))
+    + `</div>`;
+}
+
+function drawer() {
+  if (!S.drawer) return '';
+  const mode = S.drawer.mode, readOnly = mode === 'view';
+  const c = S.form;
+  const title = mode === 'add' ? 'Add context' : mode === 'edit' ? 'Edit context' : c.name;
+
+  /* The header carries the context's name, so scrolling past the Name field
+     never leaves the reader wondering which context they are in. */
+  const header = `<div style="${col(4,'padding:20px 24px 16px;flex:none;'
+      + 'border-bottom:1px solid var(--aira-border-default)')}">`
+    + `<div style="${rowTop(12)}">`
+    + `<span style="${col(4,'flex:1;min-width:0')}">`
+    + `<h2 id="drawertitle" style="${F.h3};color:var(--aira-text-primary);margin:0;${ellip}" `
+    + `title="${esc(title)}">${esc(title)}</h2>`
+    /* The header is the title alone in every mode. Author and time used to run on
+       after it as one long line — two unrelated facts competing for one row, read
+       as a sentence rather than looked up. They are a labelled strip in the body
+       now, the same one the view drawer uses. */
+    + `</span>`
+    + iconBtn('Close context drawer', 'dclose', I.x) + `</div></div>`;
+
+  /* A label over its value, which is how three facts sit side by side without
+     reading as a sentence. */
+  const fact = (label, value) =>
+    `<span style="${col(2,'min-width:0')}">`
+    + `<span style="${F.lblSm};color:var(--aira-text-tertiary)">${esc(label)}</span>`
+    + `<span style="${F.body};color:var(--aira-text-primary);${ellip}" `
+    + `title="${esc(value)}">${esc(value)}</span></span>`;
+  const factTag = (label, tagHtml) =>
+    `<span style="${col(4,'min-width:0;align-items:flex-start')}">`
+    + `<span style="${F.lblSm};color:var(--aira-text-tertiary)">${esc(label)}</span>`
+    + tagHtml + `</span>`;
+
+  let body;
+  if (readOnly) {
+    /* Read-only, so the three sections need to be told apart by their shape
+       rather than by their controls: a metadata strip, then the context on its
+       own surface, then the things attached to it. 32px between sections and
+       8px inside one is what separates them. */
+    body = `<div style="${col(32,'padding:24px')}">`
+      + `<div style="${row(32,'flex-wrap:wrap')}">`
+      + factTag('Scope', scopeTag(c.scope))
+      + fact('Last changed by', email(c.by))
+      + fact('Last changed on', c.date + ', ' + c.time)
+      + `</div>`
+      /* A rule between what the context IS and what it SAYS. The 32px gap alone
+         reads as breathing room rather than as a boundary. */
+      + `<div role="separator" style="height:1px;flex:none;`
+      + `background:var(--aira-border-subtle)"></div>`
+      + `<div style="${col(8)}">`
+      + `<span style="${F.lblMd};color:var(--aira-text-primary)">Context</span>`
+      /* The text sits on its own surface. Unboxed, it ran straight into the
+         labels above and below it and the whole drawer read as one block. */
+      + `<div style="${F.body};color:var(--aira-text-secondary);white-space:pre-wrap;`
+      + `background:var(--aira-bg-subtle);border:1px solid var(--aira-border-subtle);`
+      + `border-radius:var(--aira-radius-md);padding:16px">`
+      + `${esc(c.body || 'This context has no written content.')}</div></div>`
+      + attachmentBlock(true) + keysBlock(true) + `</div>`;
+  } else {
+    const nameErr = S.submitted && nameMissing();
+    /* Edit opens with the same two facts, laid out the same way, so moving
+       between View and Edit does not move the reader's eye. Add has no history
+       to show, so it opens straight into the form. */
+    const history = mode !== 'edit' ? '' :
+      `<div style="${row(32,'flex-wrap:wrap')}">`
+      + fact('Last changed by', email(c.by))
+      + fact('Last changed on', c.date + ', ' + c.time)
+      + `</div>`
+      + `<div role="separator" style="height:1px;flex:none;`
+      + `background:var(--aira-border-subtle)"></div>`;
+    body = `<div style="${col(20,'padding:24px')}">`
+      + history
+      + (S.scanError
+        ? `<div role="alert" style="${rowTop(12,'padding:12px 16px;'
+            + 'background:var(--aira-status-danger-bg);'
+            + 'border-radius:var(--aira-radius-md)')}">`
+          + `<span style="color:var(--aira-text-danger);display:flex;flex:none">`
+          + `${I.circleAlert(20)}</span>`
+          + `<span style="${col(4,'flex:1;min-width:0')}">`
+          + `<span style="${F.lblMd};color:var(--aira-text-primary)">${esc(S.scanError)}</span>`
+          + `<span style="${F.bodySm};color:var(--aira-text-secondary)">`
+          + `Nothing was saved. Try again, or contact support if it keeps failing.</span>`
+          + `</span></div>`
+        : '')
+      + field('fname', 'Name', true,
+          textInput('fname', c.name, '', 'fname',
+                    { required:true, invalid:nameErr, describedBy:'fname-msg' }),
+          null, nameErr ? 'Give the context a name before saving' : null)
+      + field('fscope', 'Scope', false, scopeDropdown(),
+          c.scope === 'org' ? 'Everyone in the org can read this context.'
+                            : 'Only you can read this context.')
+      + `<div style="${col(8)}">`
+      + `<label for="fbody" style="${F.lblMd};color:var(--aira-text-primary)">Context</label>`
+      + `<div class="qwrap" style="${col(0,'border:1px solid var(--aira-border-default);'
+        + 'border-radius:var(--aira-radius-md);overflow:hidden')}">`
+      + rteToolbar()
+      + `<textarea class="tbox" id="fbody" rows="9" `
+      + `style="${F.body};color:var(--aira-text-primary);border:0;background:none;`
+      + `padding:12px;min-height:180px;width:100%"` + live('fbody')
+      + `>${esc(c.body)}</textarea></div></div>`
+      + attachmentBlock(false) + keysBlock(false) + `</div>`;
+  }
+
+  const footer = readOnly
+    ? `<div style="${row(8,'padding:16px 24px;flex:none;justify-content:flex-end;'
+        + 'border-top:1px solid var(--aira-border-default)')}">`
+      + ghostBtn('Close', 'dclose')
+      + (canEdit(CX(S.drawer.id) || c) ? primaryBtn('Edit context', 'dedit', I.squarePen) : '')
+      + `</div>`
+    : `<div style="${row(8,'padding:16px 24px;flex:none;justify-content:flex-end;'
+        + 'border-top:1px solid var(--aira-border-default)')}">`
+      + ghostBtn('Cancel', 'dclose')
+      + primaryBtn(S.scanning ? 'Scanning…' : 'Scan and save', 'save', null,
+          { disabled: !canSave(), spin: S.scanning })
+      + `</div>`;
+
+  return `<div style="${row(0,'position:absolute;inset:0;justify-content:flex-end;'
+      + 'background:var(--aira-bg-scrim);z-index:6')}"` + live('scrim') + `>`
+    + `<div id="ctxdrawer" role="dialog" aria-modal="true" aria-labelledby="drawertitle" `
+    + `style="${col(0,`width:${DRAWER_W}px;height:100%;background:var(--aira-bg-elevated);`
+      + 'border-left:1px solid var(--aira-border-default);box-shadow:var(--aira-shadow-lg)')}">`
+    + header
+    + `<div class="scroller" id="dscroll" style="${col(0,'flex:1;min-height:0;overflow-y:auto')}">`
+    + body + `</div>` + footer + `</div></div>`;
+}
+
+/* ═══ modals ═════════════════════════════════════════════════════════════
+   One at a time and never over another. Every one is a short confirmation
+   except Bulk edit, which is a single form. ─────────────────────────────── */
+
+/* The title asks the question and the body confirms it in plain words, which is
+   the shape the published modal examples use ("Go back a step?" / "Are you sure
+   you want to go back a step? ..."). No object name in either: the modal opens
+   from the row or the field you clicked, so naming it adds length without
+   adding certainty — and a long file or context name breaks the heading.
+
+   The body runs as one paragraph. Forcing a break between the two sentences
+   cured the widow but left the second line barely a tenth of the measure, so
+   the copy read as narrower than the modal it sits in. See the note on
+   text-wrap where the body is rendered. */
+const MODALS = {
+  archive: {
+    role:'alertdialog', danger:true, mark:true,
+    title: () => 'Archive this context?',
+    body: 'Are you sure you want to archive this context? aiRA stops using it '
+        + 'right away, and you can restore it later.',
+    confirm:'Archive',
+  },
+  restore: {
+    role:'dialog', danger:false, mark:false,
+    title: () => 'Restore this context?',
+    body: 'Are you sure you want to restore this context? aiRA starts using it '
+        + 'again as soon as you confirm.',
+    confirm:'Restore',
+  },
+  attdel: {
+    role:'alertdialog', danger:true, mark:true,
+    title: () => 'Remove this file?',
+    body: 'Are you sure you want to remove this file from the context? aiRA stops '
+        + 'reading it when you save, and you can attach it again later.',
+    confirm:'Remove',
+  },
+  wldel: {
+    role:'alertdialog', danger:true, mark:true,
+    title: () => 'Delete this URL?',
+    body: 'Are you sure you want to delete this whitelist URL? aiRA can no longer '
+        + 'call it, and you would have to add it again from scratch.',
+    confirm:'Delete',
+  },
+  keydel: {
+    role:'alertdialog', danger:true, mark:true,
+    title: () => 'Delete this key?',
+    body: 'Are you sure you want to delete this key from the context? '
+        + 'Its stored value goes with it and cannot be recovered.',
+    confirm:'Delete',
+  },
+};
+
+function modalEl() {
+  if (!S.modal) return '';
+  if (S.modal.kind === 'bulk') return bulkModal();
+  const m = MODALS[S.modal.kind];
+  if (!m) return '';
+  /* Cancel is a tertiary text button, not an outlined one: the spec allows a
+     single primary per decision surface, and a bordered Cancel reads as a peer. */
+  /* Buttons, head, body and foot below are the published Modal anatomy —
+     head 16/20/0, body 12/20/16 in Body md secondary, foot 12/20/16 with an
+     8px gap and a subtle top border, 36px buttons at 0 16px and radius md.
+     Cancel is tertiary: no border, no fill. */
+  const b = (label, primary, fk) =>
+    `<button class="reset hov" style="${row(0,'justify-content:center')}height:36px;`
+    + `padding:0 16px;border-radius:var(--aira-radius-md);${F.lblMd};`
+    + (primary
+        ? `color:var(--aira-text-inverse);background:var(--aira-bg-`
+          + (m.danger ? 'danger' : 'brand') + `)`
+        : 'color:var(--aira-text-secondary)') + `"`
+    + live(fk) + `>${esc(label)}</button>`;
+  /* The warning mark is a 36px disc on the warning surface with a 20px glyph at
+     stroke-width 2 in the warning ink — heavier than the 1.5 the rest of the
+     iconography uses, which is what the published modal specifies. */
+  const mark = m.mark
+    ? `<span aria-hidden="true" style="${row(0,'justify-content:center')}width:36px;`
+      + `height:36px;flex:none;border-radius:var(--aira-radius-circle);`
+      + `background:var(--aira-status-warning-bg)">`
+      + `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" `
+      + `stroke="var(--aira-status-warning-text)" stroke-width="2" `
+      + `stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0`
+      + `l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/>`
+      + `<path d="M12 17h.01"/></svg></span>`
+    : '';
+  return `<div style="${row(0,'position:absolute;inset:0;justify-content:center;'
+      + 'align-items:center;background:var(--aira-bg-scrim);z-index:8')}">`
+    + `<div id="ctxmodal" role="${m.role}" aria-modal="true" aria-labelledby="mtitle" `
+    + `style="${col(0,'width:100%;max-width:440px;background:var(--aira-bg-surface);'
+      + 'border-radius:var(--aira-radius-lg);box-shadow:var(--aira-shadow-lg);'
+      + 'overflow:hidden')}">`
+    + `<div style="${row(12,`padding:${mark ? 20 : 16}px 20px 0`)}">${mark}`
+    + `<h2 id="mtitle" style="${F.h3};color:var(--aira-text-primary);min-width:0;margin:0;`
+    + `overflow-wrap:anywhere">${esc(m.title(S.modal))}</h2></div>`
+    /* text-wrap:balance, not pretty. Both are supported, but pretty only starts
+       working on longer blocks — on a two-line body it leaves the last word alone
+       on a stub of a line. balance is the one meant for short blocks.
+
+       Balance only works if there is enough copy to fill the lines it makes: it
+       divides the text evenly, so 71 characters became two half-empty lines of
+       about 210px in a 400px measure. Each body below is written long enough to
+       fill two lines properly. */
+    + `<div style="${F.body};color:var(--aira-text-secondary);`
+    + `padding:12px 20px 16px;text-wrap:balance">${esc(m.body)}</div>`
+    + `<div style="${row(8,'padding:12px 20px 16px;justify-content:flex-end;'
+      + 'border-top:1px solid var(--aira-border-subtle)')}">`
+    + b('Cancel', false, 'mcancel') + b(m.confirm, true, 'mconfirm') + `</div></div></div>`;
+}
+
+/* Bulk edit is the only place an OAuth key can actually be authored, because its
+   value is a JSON object and a single-line field cannot hold one. It stays a
+   short single form, which is what a modal is for. */
+function bulkModal() {
+  const ok = !S.bulkError;
+  return `<div style="${row(0,'position:absolute;inset:0;justify-content:center;'
+      + 'align-items:center;background:var(--aira-bg-scrim);z-index:8')}">`
+    + `<div id="ctxmodal" role="dialog" aria-modal="true" aria-labelledby="btitle" `
+    + `style="${col(0,'width:620px;background:var(--aira-bg-elevated);'
+      + 'border-radius:var(--aira-radius-md);box-shadow:var(--aira-shadow-lg)')}">`
+    + `<div style="${col(12,'padding:24px')}">`
+    + `<div style="${row(12)}">`
+    + `<h2 id="btitle" style="${F.h3};color:var(--aira-text-primary);flex:1;margin:0">`
+    + `Bulk edit keys</h2>`
+    + iconBtn('Close bulk edit', 'mcancel', I.x) + `</div>`
+    + `<span style="${F.bodySm};color:var(--aira-text-secondary)">`
+    + `A static key is a name and a value. An OAuth key is an object with a client id, `
+    + `a client secret and a token URL.</span>`
+    + `<div style="${col(4,'padding:12px;background:var(--aira-bg-subtle);'
+      + 'border-radius:var(--aira-radius-md)')}">`
+    + `<span style="${F.mono};color:var(--aira-text-secondary)">"REGION": "eu-central"</span>`
+    + `<span style="${F.mono};color:var(--aira-text-secondary)">`
+    + `"API": { "type": "OAUTH", "client_id": …, "client_secret": …, `
+    + `"token_url": … }</span></div>`
+    + `<div class="qwrap" style="${col(0,'border:1px solid '
+      + (ok ? 'var(--aira-border-default)' : 'var(--aira-text-danger)') + ';'
+      + 'border-radius:var(--aira-radius-md);overflow:hidden')}">`
+    + `<textarea class="tbox" id="bulkbox" rows="9" aria-label="Keys as JSON" `
+    + (ok ? '' : 'aria-invalid="true" aria-describedby="bulk-msg" ')
+    + `style="${F.mono};color:var(--aira-text-primary);border:0;background:none;`
+    + `padding:12px;min-height:200px;width:100%"` + live('bulkjson')
+    + `>${esc(S.bulk)}</textarea></div>`
+    + (S.bulkError
+      ? `<span id="bulk-msg" role="alert" style="${row(8,F.bodySm
+          + ';color:var(--aira-text-danger)')}">${I.circleAlert(16)}${esc(S.bulkError)}</span>`
+      : '')
+    + `</div>`
+    + `<div style="${row(8,'padding:16px 24px;justify-content:flex-end;'
+      + 'border-top:1px solid var(--aira-border-subtle)')}">`
+    + ghostBtn('Cancel', 'mcancel')
+    + primaryBtn('Save keys', 'bulksave', null, { disabled: !ok })
+    + `</div></div></div>`;
+}
+
+/* ═══ toast ══════════════════════════════════════════════════════════════ */
+const TONES = {
+  success: { ink:'var(--aira-text-success)', mark:s => I.circleCheck(s) },
+  info:    { ink:'var(--aira-text-link)',    mark:s => I.info(s) },
+};
+function toastEl() {
+  if (!S.toast) return '';
+  const t = S.toast, tone = TONES[t.tone || 'success'];
+  return `<div role="status" aria-live="polite" style="${row(12,'position:absolute;'
+      + 'left:112px;bottom:32px;max-width:440px;background:var(--aira-bg-elevated);'
+      + 'border:1px solid var(--aira-border-default);border-radius:var(--aira-radius-md);'
+      + 'box-shadow:var(--aira-shadow-lg);padding:12px 16px;z-index:9')}">`
+    + `<span aria-hidden="true" style="flex:none;display:flex;color:${tone.ink}">`
+    + `${tone.mark(20)}</span>`
+    + `<span style="${F.lblMd};color:var(--aira-text-primary);min-width:0;flex:1;`
+    + `overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;`
+    + `-webkit-box-orient:vertical;overflow:hidden">`
+    + `${esc(t.title)}</span>`
+    + (t.action
+        ? `<button class="reset hov" style="${F.lblMd};color:var(--aira-text-link);`
+          + `border-radius:var(--aira-radius-xs);padding:8px 12px;margin:-8px -8px -8px 4px"`
+          + live('toastact') + `>${esc(t.action)}</button>`
+        : '')
+    + iconBtn('Dismiss', 'toastclose', I.x, 'var(--aira-text-tertiary)') + `</div>`;
+}
+let toastTimer = null, toastShown = null;
+function armToast() {
+  if (!S.toast) { clearTimeout(toastTimer); toastTimer = null; toastShown = null; return; }
+  if (S.toast === toastShown) return;
+  clearTimeout(toastTimer);
+  toastShown = S.toast;
+  toastTimer = setTimeout(() => {
+    if (S.toast !== toastShown) return;
+    S.toast = null; toastShown = null; commit();
+  }, 4000);
+}
+
+/* ═══ render — one entry point, every mutation ends here ═════════════════ */
+const appEl = document.getElementById('app');
+
+function render() {
+  captureScroll();
+  captureCaret();
+  appEl.innerHTML =
+    `<div id="appmain" style="${row(0,'align-items:stretch;flex:1;min-width:0;height:100%;'
+      + 'background:var(--aira-bg-canvas);overflow:hidden')}">`
+    + railChrome()
+    + `<div style="${col(0,'flex-grow:1;min-width:0')}">` + topBar()
+    + `<div style="${col(0,'flex-grow:1;min-width:0;min-height:0;'
+      + 'background:var(--aira-bg-elevated)')}">`
+    + `<div style="${row(0,'height:60px;flex:none;padding:0 24px;'
+      + 'border-bottom:1px solid var(--aira-border-default)')}">`
+    + `<span style="${F.h3};color:var(--aira-text-primary)">Settings</span></div>`
+    + `<div style="${row(0,'flex-grow:1;min-height:0;align-items:stretch')}">`
+    + settingsNav()
+    + `<div style="${col(0,'flex-grow:1;min-width:0;min-height:0')}">`
+    + (S.page === 'whitelist' ? whitelistListing() : listing()) + `</div>`
+    + `</div></div></div></div>`
+    + (S.drawer && S.drawer.kind === 'wl' ? wlDrawer() : drawer())
+    + modalEl() + toastEl();
+  wireApp();
+  applyInert();
+  sizeGutters();     // before scroll restore: it changes the layout
+  restoreScroll();   // scroll first: focus can scroll things into view
+  placeDatePicker(); // after the scroll is restored, or it would be undone
+  restoreFocus();
+  restoreCaret();
+  armToast();
+  renderProto();
+}
+
+/* Everything behind the topmost surface goes inert, so Tab cannot walk into the
+   listing behind a drawer or into the drawer's form behind a confirm. render()
+   rebuilds innerHTML on every commit, so this is reapplied every time. */
+function applyInert() {
+  const main = document.getElementById('appmain');
+  const dr = document.getElementById('ctxdrawer');
+  const mo = document.getElementById('ctxmodal');
+  if (main) main.inert = !!(S.drawer || S.modal);
+  if (dr) dr.inert = !!S.modal;
+  if (mo) mo.inert = false;
+}
+const topSurface = () => document.getElementById('ctxmodal')
+                       || document.getElementById('ctxdrawer') || null;
+const FOCUSABLE = 'button:not([disabled]),input,textarea,select,a[href],[tabindex]:not([tabindex="-1"])';
+
+/* The panel re-renders on every keystroke, so the caret has to go back exactly
+   where it was — restoring it to the end would break mid-word edits. */
+let caret = null, caretId = null;
+const FIELD_IDS = ['qbox','fname','fbody','bulkbox','kname','kval'];
+function captureCaret() {
+  const a = document.activeElement;
+  if (a && FIELD_IDS.indexOf(a.id) >= 0) {
+    caretId = a.id; caret = [a.selectionStart, a.selectionEnd];
+  } else { caretId = null; caret = null; }
+}
+function restoreCaret() {
+  if (!caretId) return;
+  const el = document.getElementById(caretId);
+  if (!el) { caretId = null; return; }
+  try { el.focus(); if (caret) el.setSelectionRange(caret[0], caret[1]); } catch (e) {}
+}
+
+/* Scroll is owned by state and never read back off the DOM at render time. */
+function captureScroll() {
+  const w = document.getElementById('dscroll');
+  if (w) S.drawerScroll = w.scrollTop;
+}
+function restoreScroll() {
+  const w = document.getElementById('dscroll');
+  if (!w) return;
+  /* Clamp, or removing the last attachment parks the drawer in blank space. */
+  S.drawerScroll = Math.max(0, Math.min(S.drawerScroll, w.scrollHeight - w.clientHeight));
+  w.scrollTop = S.drawerScroll;
+}
+
+/* Focus never lands on <body>. After a control disappears — a row archived, a key
+   deleted, a modal closed — focus moves to the thing that replaced it, and if
+   that is gone too, to the first control of whatever surface is now on top. */
+/* Every commit rebuilds the DOM, so focus has to be put back by hand — and a
+   programmatic focus() makes Chrome show the keyboard ring even when the last
+   thing the reader did was click. The ring belongs to keyboard navigation, so
+   the modality is tracked and passed through: a click restores focus without
+   it, Tab restores focus with it. */
+let keyboardNav = false;
+addEventListener('keydown', e => { if (e.key === 'Tab') keyboardNav = true; }, true);
+addEventListener('pointerdown', () => { keyboardNav = false; }, true);
+const putFocus = el => {
+  try { el.focus({ preventScroll:false, focusVisible: keyboardNav }); }
+  catch (e) { el.focus(); }
+};
+function restoreFocus() {
+  if (caretId) return;                       // the caret path owns focus
+  if (S.focus) {
+    const el = appEl.querySelector(`[data-fk="${CSS.escape(S.focus)}"]`);
+    if (el && !el.closest('[inert]')) { putFocus(el); S.focus = null; return; }
+    S.focus = null;
+  }
+  const active = document.activeElement;
+  if (active && active !== document.body && appEl.contains(active)
+      && !active.closest('[inert]')) return;
+  const top = topSurface();
+  const scope = top || document.getElementById('appmain');
+  const first = scope && scope.querySelector(FOCUSABLE);
+  if (first) putFocus(first);
+}
+
+function wireApp() {
+  appEl.querySelectorAll('[data-fk]').forEach(el => {
+    const k = el.getAttribute('data-fk');
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+      el.addEventListener('input', () => onInput(k, el.value));
+      return;
+    }
+    el.addEventListener('click', e => { e.stopPropagation(); act(k); });
+  });
+}
+
+function onInput(k, v) {
+  if (k === 'q')     { S.query = v; S.menu = null; return commit(); }
+  if (k === 'wlq')   { S.wlQuery = v; S.menu = null; return commit(); }
+  if (k === 'wldomain')  { S.form.domain = v; return commit(); }
+  if (k === 'wlremarks') { S.form.remarks = v; return commit(); }
+  if (k === 'wlexpires') {
+    /* The control speaks ISO; the row and the drawer speak the org's own date
+       format, so both are kept — the ISO value is what the input reads back. */
+    S.form.expiresISO = v;
+    S.form.expires = v
+      ? new Date(v + 'T00:00:00').toLocaleDateString('en-US',
+          { month:'short', day:'numeric', year:'numeric' })
+      : null;
+    return commit();
+  }
+  if (k === 'dphm') {
+    /* Typed freely and normalised on blur rather than while typing, so deleting
+       a digit does not fight the field. */
+    S.form.expiryHM = v; return commit();
+  }
+  if (k.indexOf('wlpath:') === 0) {
+    S.form.paths[Number(k.split(':')[1])] = v; return commit();
+  }
+  if (k === 'fname') { S.form.name = v; return commit(); }
+  if (k === 'fbody') { S.form.body = v; return commit(); }
+  if (k === 'kname') { S.form.keys[S.keyEdit].name = v; return commit(); }
+  if (k === 'kval')  { S.form.keys[S.keyEdit].pending = v; return commit(); }
+  if (k === 'bulkjson') {
+    S.bulk = v;
+    /* Valid JSON that is not an object is a different mistake from JSON that does
+       not parse, and telling someone to check their commas when their commas are
+       fine sends them looking for a problem they do not have. */
+    try {
+      const p = JSON.parse(v);
+      S.bulkError = (p === null || typeof p !== 'object' || Array.isArray(p))
+        ? 'Keys must be a JSON object, not a list or a single value. Wrap them in { }.'
+        : null;
+    } catch (err) {
+      S.bulkError = 'That is not valid JSON yet. Check the braces and commas.';
+    }
+    return commit();
+  }
+}
+
+/* ═══ actions ════════════════════════════════════════════════════════════ */
+
+function openDrawer(mode, id) {
+  const src = id ? CX(id) : null;
+  S.drawer = { mode, id: id || null };
+  S.form = src ? clone(src) : mk({ name:'', scope: canEditOrg() ? 'org' : 'user',
+                                   by:ME, date:NOW.date, time:NOW.time });
+  S.pristine = clone(S.form);
+  S.keysOpen = false; S.keyEdit = null; S.submitted = false;
+  S.scanError = null; S.menu = null;
+}
+function closeDrawer() {
+  S.drawer = null; S.form = null; S.pristine = null;
+  S.keysOpen = false; S.keyEdit = null; S.submitted = false;
+  S.scanError = null; S.bulk = null; S.bulkError = null; S.modal = null;
+  if (scanTimer) { clearTimeout(scanTimer); scanTimer = null; }
+  S.scanning = false;
+}
+
+let scanTimer = null;
+function startScan() {
+  if (S.drawer.mode === 'add') {
+    S.submitted = true;
+    if (nameMissing()) { S.focus = 'fname'; return commit(); }
+  }
+  const willFail = S.failNext; S.failNext = false;
+  S.scanning = true; S.scanError = null;
+  commit();
+  if (scanTimer) clearTimeout(scanTimer);
+  /* The real scan runs 2–3 seconds. Kept honest rather than shortened, because
+     the wait is part of what is being reviewed. */
+  scanTimer = setTimeout(() => {
+    scanTimer = null; S.scanning = false;
+    if (willFail) { S.scanError = 'The scan could not finish'; S.focus = 'save'; return commit(); }
+    const mode = S.drawer.mode, f = S.form;
+    f.date = NOW.date; f.time = NOW.time; f.by = ME;
+    f.keys.forEach(k => { delete k.pending; });
+    if (mode === 'add') CTX.unshift(clone(f));
+    else { const i = CTX.findIndex(c => c.id === f.id); if (i >= 0) CTX[i] = clone(f); }
+    const name = f.name;
+    closeDrawer();
+    S.toast = { title: name + ' saved', tone:'success' };
+    S.focus = 'add';
+    commit();
+  }, 2200);
+}
+
+function act(k) {
+  const [head, a] = k.split(':');
+  /* While a modal is up only its own controls act. */
+  if (S.modal && ['mcancel','mconfirm','bulksave','bulkjson'].indexOf(head) < 0) return;
+
+  switch (head) {
+    case 'scope':
+    case 'status':
+      if (a === undefined) S.menu = S.menu === '__' + head ? null : '__' + head;
+      else { S[head] = a; S.menu = null; }
+      S.focus = head; return commit();
+    case 'q':      return;
+    case 'sort':   S.sort = S.sort === 'asc' ? 'desc' : 'asc';
+                   S.focus = 'sort'; return commit();
+    case 'wlq':    return;
+    case 'nav':    S.page = a; S.menu = null; closeDrawer(); S.query = ''; S.wlQuery = '';
+                   S.focus = 'nav:' + a; return commit();
+    case 'wlstatus':
+      if (a === undefined) S.menu = S.menu === '__wlstatus' ? null : '__wlstatus';
+      else { S.wlStatus = a; S.menu = null; }
+      S.focus = 'wlstatus'; return commit();
+    case 'wladd':  wlOpen('add'); S.focus = 'wdomain'; return commit();
+    case 'wlopen': wlOpen('view', a); S.focus = 'wlclose'; return commit();
+    case 'wlmore': S.menu = S.menu === a ? null : a; S.focus = 'wlmore:' + a;
+                   return commit();
+    case 'wlmi':   return wlMenuItem(a, k.split(':')[2]);
+    case 'wlclose': { const id = S.drawer && S.drawer.id;
+                      closeDrawer(); S.focus = id ? 'wlmore:' + id : 'wladd';
+                      return commit(); }
+    case 'wledit': { const id = S.drawer.id; wlOpen('edit', id); S.focus = 'wdomain';
+                     return commit(); }
+    case 'wlpathadd':  S.form.paths.push(''); S.focus = 'wlpath:' + (S.form.paths.length - 1);
+                       return commit();
+    case 'wlpathdel':  S.form.paths.splice(Number(a), 1);
+                       S.focus = 'wlpathadd'; return commit();
+    case 'wlmethod': { const i = S.form.methods.indexOf(a);
+                       if (i >= 0) S.form.methods.splice(i, 1);
+                       else S.form.methods = WL_METHODS.filter(
+                              m => m === a || S.form.methods.indexOf(m) >= 0);
+                       S.focus = 'wlmethod:' + a; return commit(); }
+    case 'wlactive':   S.form.active = !S.form.active; S.focus = 'wlactive';
+                       return commit();
+    case 'dptoggle':   S.dpOpen = !S.dpOpen; S.menu = null;
+                       S.dpView = null; S.focus = 'dptoggle'; return commit();
+    case 'dpclose':    if (S.dpOpen || S.menu) { S.dpOpen = false; S.menu = null;
+                                                 return commit(); }
+                       return;
+    case 'dpprev':
+    case 'dpnext': {
+      const cur = S.dpView || (S.form.expires
+        ? { y:new Date(S.form.expires).getFullYear(), m:new Date(S.form.expires).getMonth() }
+        : { y:dpToday.getFullYear(), m:dpToday.getMonth() });
+      const step = head === 'dpnext' ? 1 : -1;
+      let m = cur.m + step, y = cur.y;
+      if (m < 0) { m = 11; y -= 1; } if (m > 11) { m = 0; y += 1; }
+      S.dpView = { y, m }; S.focus = head; return commit();
+    }
+    case 'dpday': {
+      const [y, m, d] = a.split('-').map(Number);
+      S.form.expires = dpFmt(y, m, d);
+      S.dpOpen = false; S.dpView = null; S.focus = 'dptoggle'; return commit();
+    }
+    case 'dptz':       if (a === undefined) S.menu = S.menu === '__dptz' ? null : '__dptz';
+                       else { S.form.expiryTZ = a; S.menu = null; }
+                       S.focus = 'dptz'; return commit();
+    case 'dphm':       return;
+    case 'dpclear':    S.form.expires = null; S.dpOpen = false; S.dpView = null;
+                       S.focus = 'dptoggle'; return commit();
+    case 'dptoday':    S.form.expires = dpFmt(dpToday.getFullYear(), dpToday.getMonth(),
+                                              dpToday.getDate());
+                       S.dpOpen = false; S.dpView = null; S.focus = 'dptoggle';
+                       return commit();
+    case 'wlsave':     return wlSave();
+    case 'add':    openDrawer('add'); S.focus = 'fname'; return commit();
+    /* Settings is a full surface in the real product, so its X returns to chat.
+       There is no chat in this prototype, so it says so rather than doing
+       nothing silently. */
+    case 'closesettings':
+      S.toast = { title:'Closing settings takes you back to the chat.', tone:'info' };
+      return commit();
+    case 'open':   openDrawer('view', a); S.focus = 'dclose'; return commit();
+    case 'more':   S.menu = S.menu === a ? null : a; S.focus = 'more:' + a; return commit();
+    case 'mi':     return menuItem(a, k.split(':')[2]);
+    case 'scrim':  /* falls through — an outside click dismisses the drawer */
+    case 'dclose': { const id = S.drawer && S.drawer.id;
+                     closeDrawer(); S.focus = id ? 'more:' + id : 'add';
+                     return commit(); }
+    case 'dedit':  { const id = S.drawer.id; openDrawer('edit', id); S.focus = 'fname';
+                     return commit(); }
+    case 'fscope': if (a === undefined) S.menu = S.menu === '__fscope' ? null : '__fscope';
+                   else { S.form.scope = a; S.menu = null; }
+                   S.focus = 'fscope'; return commit();
+    case 'save':   return startScan();
+    case 'keys':   S.keysOpen = !S.keysOpen; S.keyEdit = null;
+                   S.focus = 'keys'; return commit();
+    case 'addkey': S.form.keys.push({ name:'NEW_KEY', type:'static' });
+                   S.keyEdit = S.form.keys.length - 1; S.focus = 'kname';
+                   return commit();
+    case 'kedit':  S.keyEdit = Number(a); S.focus = 'kname'; return commit();
+    /* ksave/kcancel carry no index, so the row has to be read off S.keyEdit
+       before it is cleared — otherwise focus falls out of the keys block. */
+    case 'ksave':
+    case 'kcancel': { const i = S.keyEdit; S.keyEdit = null;
+                      S.focus = i == null ? 'addkey' : 'kedit:' + i;
+                      return commit(); }
+    case 'kdel':   S.modal = { kind:'keydel', index:Number(a),
+                               name:S.form.keys[Number(a)].name, from:'kdel:' + a };
+                   return commit();
+    case 'attdel': S.modal = { kind:'attdel', index:Number(a),
+                               name:S.form.attachments[Number(a)].name, from:'attdel:' + a };
+                   return commit();
+    case 'attget': S.toast = { title: S.form.attachments[Number(a)].name + ' downloaded',
+                               tone:'info' };
+                   S.focus = 'attget:' + a; return commit();
+    case 'attadd': S.form.attachments.push({ name:'tier_rules_2026.pdf', size:'240 KB' });
+                   S.toast = { title:'tier_rules_2026.pdf attached', tone:'success' };
+                   S.focus = 'attadd'; return commit();
+    case 'bulk':   seedBulk(); S.focus = 'bulkjson'; return commit();
+    case 'bulksave': {
+      let parsed; try { parsed = JSON.parse(S.bulk); } catch (e) { return; }
+      S.form.keys = Object.keys(parsed).map(name => {
+        const v = parsed[name];
+        const isOauth = v && typeof v === 'object' && String(v.type).toUpperCase() === 'OAUTH';
+        return { name, type: isOauth ? 'oauth' : 'static' };
+      });
+      S.modal = null; S.bulk = null; S.bulkError = null;
+      S.toast = { title:'Keys updated', tone:'success' };
+      S.focus = 'bulk'; return commit();
+    }
+    case 'mcancel': { const from = S.modal && S.modal.from;
+                      const wasBulk = S.modal && S.modal.kind === 'bulk';
+                      S.modal = null; S.bulk = null; S.bulkError = null;
+                      S.focus = from || (wasBulk ? 'bulk' : null); return commit(); }
+    case 'mconfirm': return modalConfirm();
+    case 'toastclose':
+    case 'toastact': {
+      /* A button labelled with a verb has to perform it. */
+      const u = S.toast && S.toast.undo && CX(S.toast.undo);
+      if (u) u.archived = false;
+      S.toast = null; return commit();
+    }
+  }
+}
+
+function menuItem(action, id) {
+  const c = CX(id);
+  S.menu = null;
+  if (action === 'view')      { openDrawer('view', id); S.focus = 'dclose'; return commit(); }
+  if (action === 'edit')      { openDrawer('edit', id); S.focus = 'fname'; return commit(); }
+  if (action === 'archive') { S.modal = { kind:'archive', id, from:'more:' + id };
+                              return commit(); }
+  if (action === 'restore') { S.modal = { kind:'restore', id, from:'more:' + id };
+                              return commit(); }
+}
+
+function wlMenuItem(action, id) {
+  S.menu = null;
+  if (action === 'view')   { wlOpen('view', id); S.focus = 'wlclose'; return commit(); }
+  if (action === 'edit')   { wlOpen('edit', id); S.focus = 'wdomain'; return commit(); }
+  if (action === 'delete') { S.modal = { kind:'wldel', id, from:'wlmore:' + id };
+                             return commit(); }
+}
+
+function wlSave() {
+  S.submitted = true;
+  const e = wlErrors();
+  if (e.domain)  { S.focus = 'wldomain'; return commit(); }
+  if (e.paths)   { S.focus = 'wlpath:0'; return commit(); }
+  if (e.methods) { S.focus = 'wlmethod:GET'; return commit(); }
+  const w = S.form;
+  w.paths = w.paths.filter(x => x.trim());
+  w.by = ME; w.date = NOW.date; w.time = NOW.time;
+  const adding = S.drawer.mode === 'add';
+  if (adding) WL.unshift(clone(w));
+  else Object.assign(WX(w.id), clone(w));
+  const domain = w.domain;
+  closeDrawer();
+  S.toast = { title: domain + (adding ? ' whitelisted' : ' updated'), tone:'success' };
+  S.focus = 'wladd';
+  return commit();
+}
+
+function modalConfirm() {
+  const m = S.modal; S.modal = null;
+  if (m.kind === 'archive') {
+    const c = CX(m.id); c.archived = true;
+    S.toast = { title: c.name + ' archived', tone:'success',
+                action:'Undo', undo:c.id };
+    S.focus = 'add'; return commit();
+  }
+  if (m.kind === 'restore') {
+    const c = CX(m.id); c.archived = false;
+    S.toast = { title: c.name + ' restored', tone:'success' };
+    S.focus = 'add'; return commit();
+  }
+  if (m.kind === 'attdel') {
+    S.form.attachments.splice(m.index, 1);
+    S.focus = S.form.attachments.length ? 'attget:0' : 'attadd'; return commit();
+  }
+  if (m.kind === 'wldel') {
+    const w = WX(m.id), domain = w.domain;
+    WL = WL.filter(x => x.id !== m.id);
+    S.toast = { title: domain + ' deleted', tone:'success' };
+    S.focus = 'wladd'; return commit();
+  }
+  if (m.kind === 'keydel') {
+    S.form.keys.splice(m.index, 1);
+    if (S.keyEdit === m.index) S.keyEdit = null;
+    S.focus = S.form.keys.length ? 'kedit:0' : 'addkey'; return commit();
+  }
+  return commit();
+}
+
+function seedBulk() {
+  S.bulk = JSON.stringify(S.form.keys.reduce((o, kk) => {
+    o[kk.name] = kk.type === 'oauth'
+      ? { type:'OAUTH', client_id:'trendly-aira',
+          client_secret:'••••••••',
+          token_url:'https://api.eucrm.cc.capillarytech.com/oauth/token' }
+      : '';
+    return o;
+  }, {}), null, 2);
+  S.bulkError = null; S.modal = { kind:'bulk', from:'bulk' };
+}
+
+function commit() { render(); }
+
+/* Clicking the surface closes any open menu, the way a popover behaves. */
+appEl.addEventListener('click', () => {
+  if (S.modal || S.drawer) return;      // those have their own dismissal
+  if (S.menu) { S.menu = null; commit(); }
+});
+
+/* ═══ keyboard ═══════════════════════════════════════════════════════════ */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (S.modal)  { e.preventDefault(); return act('mcancel'); }
+    if (S.menu)   { e.preventDefault(); S.menu = null; return commit(); }
+    if (S.dpOpen) { e.preventDefault(); S.dpOpen = false; return commit(); }
+    if (S.drawer) { e.preventDefault(); return act('dclose'); }
+    if (S.toast)  { e.preventDefault(); S.toast = null; return commit(); }
+    return;
+  }
+  /* An open listbox owes the reader arrow keys. Enter and Space already work
+     because every option is a real button. */
+  if (S.menu && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+    const list = document.querySelector('.menu');
+    if (list) {
+      const opts = Array.from(list.querySelectorAll('button'));
+      if (opts.length) {
+        e.preventDefault();
+        const at = opts.indexOf(document.activeElement);
+        const step = e.key === 'ArrowDown' ? 1 : -1;
+        const next = at < 0 ? (step > 0 ? 0 : opts.length - 1)
+                            : (at + step + opts.length) % opts.length;
+        opts[next].focus();
+        return;
+      }
+    }
+  }
+  /* Enter and Space operate a focused control; the browser does this for real
+     buttons, and every control here is one. Tab is the only key that needs
+     help, because focus has to stay inside the topmost surface. */
+  if (e.key !== 'Tab') return;
+  const top = topSurface();
+  if (!top) return;
+  const items = Array.from(top.querySelectorAll(FOCUSABLE))
+    .filter(el => el.offsetParent !== null || el === document.activeElement);
+  if (!items.length) return;
+  const first = items[0], last = items[items.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  else if (!top.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+});
+
+/* ═══ prototype controls ═════════════════════════════════════════════════
+   Not part of the product. These carry the three states a reviewer cannot
+   reach by clicking: a different role, a scan that fails, and an org with
+   nothing in it yet. ──────────────────────────────────────────────────── */
+const protoEl = document.getElementById('proto');
+function renderProto() {
+  const b = (label, key, pressed) =>
+    `<button type="button" data-p="${key}" aria-pressed="${!!pressed}">${esc(label)}</button>`;
+  /* Two of these change nothing you can see on the listing — a member reads the
+     same rows, and an armed failure only shows up three clicks later inside the
+     drawer. So the panel says out loud what it has just armed, and every button
+     has a visible consequence at the moment it is pressed. */
+  const wl = S.page === 'whitelist';
+  /* A drawer runs the full height of the window, so at the top edge the strip
+     lands on the drawer's own title. While one is open it centres on the app
+     left of the drawer instead. */
+  protoEl.style.left = S.drawer
+    ? `calc((100% - min(${DRAWER_W}px, 100%)) / 2)` : '50%';
+  protoEl.innerHTML = `<span class="plabel">Prototype</span>`
+    + (wl ? b('Empty the list', 'empty', WL.length === 0)
+          : b('Empty the org', 'empty', CTX.length === 0))
+    + b('Reset', 'reset', false);
+  protoEl.querySelectorAll('[data-p]').forEach(el =>
+    el.onclick = () => protoAct(el.getAttribute('data-p')));
+}
+function protoAct(k) {
+  const [head, a] = k.split(':');
+  if (head === 'role')     { S.role = a; S.scope = 'all'; S.menu = null; closeDrawer(); }
+  if (head === 'failnext') { S.failNext = !S.failNext; }
+  if (head === 'empty') {
+    if (S.page === 'whitelist') { WL = WL.length ? [] : clone(WL_SEED); S.wlQuery = ''; }
+    else                        { CTX = CTX.length ? [] : clone(SEED); S.query = ''; }
+    S.menu = null; closeDrawer();
+  }
+  if (head === 'reset')    { resetAll(); }
+  S.focus = null; commit();
+}
+function resetAll() {
+  CTX = clone(SEED); WL = clone(WL_SEED);
+  S.role = 'superadmin'; S.scope = 'all'; S.status = 'active'; S.query = '';
+  S.wlStatus = 'all'; S.wlQuery = ''; S.sort = 'desc';
+  S.menu = null; S.failNext = false; S.toast = null; S.focus = null;
+  closeDrawer();
+  clearTimeout(toastTimer); toastTimer = null; toastShown = null;
+}
+
+try {
+  render();
+} catch (err) {
+  appEl.innerHTML =
+    '<div style="margin:auto;max-width:520px;padding:24px;'
+    + 'border:1px solid var(--aira-border-default);'
+    + 'border-radius:var(--aira-radius-lg);background:var(--aira-bg-elevated);'
+    + 'font:400 14px/20px Roboto,system-ui,sans-serif;'
+    + 'color:var(--aira-text-secondary)">'
+    + '<b style="display:block;margin-bottom:8px;font:600 16px/24px Roboto,system-ui,sans-serif;'
+    + 'color:#111827">This prototype could not start</b>'
+    + 'It needs to run as a real page. If you opened the file in a preview or snapshot '
+    + 'viewer, scripts are disabled there — open it in a browser instead.'
+    + '<div style="margin-top:12px;font:400 13px/20px ui-monospace,Menlo,monospace;'
+    + 'color:#D92D2D">' + String(err && err.message ? err.message : err) + '</div></div>';
+}
+</script>
+</body>
+</html>
