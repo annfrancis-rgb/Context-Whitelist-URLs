@@ -900,7 +900,7 @@ function listing() {
     const up = total > 4 && i >= total - 3;
     return `<div class="menu" role="menu" style="${col(0,'position:absolute;right:0;'
         + (up ? 'bottom:calc(100% + 4px);' : 'top:calc(100% + 4px);')
-        + 'width:232px;background:var(--aira-bg-elevated);'
+        + 'min-width:144px;width:max-content;background:var(--aira-bg-elevated);'
         + 'border:1px solid var(--aira-border-default);'
         + 'border-radius:var(--aira-radius-md);box-shadow:var(--aira-shadow-lg);'
         + 'padding:8px;z-index:4')}">`
@@ -1103,7 +1103,7 @@ function whitelistListing() {
     const up = total > 4 && i >= total - 3;
     return `<div class="menu" role="menu" style="${col(0,'position:absolute;right:0;'
         + (up ? 'bottom:calc(100% + 4px);' : 'top:calc(100% + 4px);')
-        + 'width:216px;background:var(--aira-bg-elevated);'
+        + 'min-width:144px;width:max-content;background:var(--aira-bg-elevated);'
         + 'border:1px solid var(--aira-border-default);'
         + 'border-radius:var(--aira-radius-md);box-shadow:var(--aira-shadow-lg);'
         + 'padding:8px;z-index:4')}">`
