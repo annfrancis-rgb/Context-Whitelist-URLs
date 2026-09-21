@@ -1401,8 +1401,10 @@ function wlDrawer() {
   if (!S.drawer || S.drawer.kind !== 'wl') return '';
   const mode = S.drawer.mode, readOnly = mode === 'view';
   const w = S.form;
-  const title = mode === 'add' ? 'Add whitelist URL'
-              : mode === 'edit' ? 'Edit whitelist URL' : w.domain;
+  /* The drawer opens from a page already titled Whitelist URLs, so naming the
+     list again in the heading repeats what is on screen. Same reasoning that
+     took "context" out of the row menus. */
+  const title = mode === 'add' ? 'Add URL' : mode === 'edit' ? 'Edit URL' : w.domain;
 
   const header = `<div style="${col(4,'padding:20px 24px 16px;flex:none;'
       + 'border-bottom:1px solid var(--aira-border-default)')}">`
