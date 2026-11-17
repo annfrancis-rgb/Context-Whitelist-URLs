@@ -40,6 +40,10 @@
   /* Status surfaces, verbatim from the published token set. */
   --aira-status-warning-bg:#FFF6E0; --aira-status-warning-text:#8A5500;
   --aira-status-danger-bg:#FFECEC;  --aira-status-danger-text:#B11E1E;
+  /* Soft-success and soft-neutral tints in the same lightness band as the
+     warning tint above, so the whitelist status pills read as one filled set. */
+  --aira-status-success-bg:#E8F3EC; --aira-status-success-text:#1F7A42;
+  --aira-status-neutral-bg:#EEF1F4; --aira-status-neutral-text:#364152;
   --aira-bg-scrim:rgba(17,24,39,0.45);
   --aira-brand-from:#6268FF; --aira-brand-to:#3BA7FF;
   --aira-avatar-grad:linear-gradient(135deg,var(--aira-brand-from),var(--aira-brand-to));
@@ -1042,20 +1046,25 @@ const NOW_STAMP = Date.parse(NOW.date);
 const wlState = w => !w.active ? 'inactive'
   : (w.expires && Date.parse(w.expires) < NOW_STAMP) ? 'expired' : 'active';
 const WL_STATE = {
-  active:   { label:'Active',   dot:'var(--aira-text-success)' },
-  inactive: { label:'Inactive', dot:'var(--aira-text-tertiary)' },
-  expired:  { label:'Expired',  dot:'var(--aira-text-warning)' },
+  active:   { label:'Active',   dot:'var(--aira-text-success)',
+              bg:'var(--aira-status-success-bg)', ink:'var(--aira-status-success-text)' },
+  inactive: { label:'Inactive', dot:'var(--aira-text-tertiary)',
+              bg:'var(--aira-status-neutral-bg)', ink:'var(--aira-status-neutral-text)' },
+  expired:  { label:'Expired',  dot:'var(--aira-text-warning)',
+              bg:'var(--aira-status-warning-bg)', ink:'var(--aira-status-warning-text)' },
 };
 /* AiraChip with a status dot. Not a Pill — Pill is reserved for the six approval
    lifecycle states, and these are not those. The dot carries the distinction
-   alongside the word, so it survives grayscale. */
+   alongside the word, so it survives grayscale. The chip is filled with a soft
+   tint matching its state (same lightness band as the warning token), with no
+   border — the fill carries the shape, like the "Connected" connector pill. */
 const wlChip = st => {
   const t = WL_STATE[st];
   /* inline-flex, not flex: as the only child of a block cell a flex span
      stretches to the cell's width, which is what turned these into wide pills
      with their label stranded at the left end. */
-  return `<span style="${row(6,`${F.lblSm};color:var(--aira-text-secondary);`
-      + 'background:var(--aira-bg-default);border:1px solid var(--aira-border-default);'
+  return `<span style="${row(6,`${F.lblSm};color:${t.ink};`
+      + `background:${t.bg};border:1px solid transparent;`
       + 'border-radius:var(--aira-radius-pill);height:20px;padding:0 10px;'
       + 'display:inline-flex;width:fit-content')}">`
     + `<span aria-hidden="true" style="width:6px;height:6px;flex:none;`
